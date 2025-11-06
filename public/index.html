@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Słowny Impostor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="login-container">
+        <h1>Słowny Impostor</h1>
+        <form id="login-form">
+            <input type="text" id="nickname-input" placeholder="Podaj swój nick" required>
+            <button type="submit">Dołącz do gry</button>
+        </form>
+    </div>
+
+    <div id="game-container" style="display: none;">
+        <!-- Tutaj pojawi się zawartość gry -->
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
+</body>
+</html>
