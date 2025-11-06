@@ -5,6 +5,7 @@ const loginContainer = document.getElementById('login-container');
 const lobbyContainer = document.getElementById('lobby-container');
 const roomContainer = document.getElementById('room-container');
 const gameContainer = document.getElementById('game-container');
+const gameOverContainer = document.getElementById('game-over-container');
 
 // Login
 const loginForm = document.getElementById('login-form');
@@ -34,6 +35,12 @@ const voteImpostorButton = document.getElementById('vote-impostor-button');
 const votingContainer = document.getElementById('voting-container');
 const votingOptions = document.getElementById('voting-options');
 const guessWordButton = document.getElementById('guess-word-button');
+
+// Game Over
+const gameOverWinner = document.getElementById('game-over-winner');
+const gameOverReason = document.getElementById('game-over-reason');
+const backToLobbyButton = document.getElementById('back-to-lobby-button');
+
 
 let currentRoom = null;
 
@@ -190,8 +197,14 @@ guessWordButton.addEventListener('click', () => {
 });
 
 socket.on('game-over', (data) => {
-    alert(`Koniec gry! Zwycięzca: ${data.winner}. ${data.reason}`);
     gameContainer.style.display = 'none';
+    gameOverContainer.style.display = 'block';
+    gameOverWinner.innerText = `Zwycięzca: ${data.winner}`;
+    gameOverReason.innerText = data.reason;
+});
+
+backToLobbyButton.addEventListener('click', () => {
+    gameOverContainer.style.display = 'none';
     lobbyContainer.style.display = 'block';
 });
 

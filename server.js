@@ -17,7 +17,17 @@ const words = {
     "Plaża": "Miejsce z piaskiem i wodą",
     "Książka": "Przedmiot do czytania",
     "Gitara": "Instrument muzyczny",
-    "Kot": "Zwierzę domowe"
+    "Kot": "Zwierzę domowe",
+    "Samochód": "Pojazd mechaniczny",
+    "Komputer": "Urządzenie elektroniczne",
+    "Drzewo": "Roślina z pniem i gałęziami",
+    "Słońce": "Gwiazda w centrum Układu Słonecznego",
+    "Księżyc": "Naturalny satelita Ziemi",
+    "Pizza": "Włoskie danie z ciasta i dodatków",
+    "Rower": "Jednoślad napędzany siłą mięśni",
+    "Telefon": "Urządzenie do komunikacji głosowej",
+    "Teleskop": "Przyrząd do obserwacji odległych obiektów",
+    "Mikrofon": "Urządzenie do przetwarzania fal dźwiękowych"
 };
 
 app.use(express.static('public'));
