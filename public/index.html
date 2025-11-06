@@ -8,11 +8,19 @@
 </head>
 <body>
     <div id="login-container">
-        <h1>Słowny Impostor</h1>
+        <h1>Witaj!</h1>
         <form id="login-form">
             <input type="text" id="nickname-input" placeholder="Podaj swój nick" required>
-            <button type="submit">Dołącz do gry</button>
+            <button type="submit">Dalej</button>
         </form>
+    </div>
+
+    <div id="game-selection-container" style="display: none;">
+        <h2>Wybierz Grę</h2>
+        <div id="game-list">
+            <button class="game-select-button" data-game="wordImpostor">Słowny Impostor</button>
+            <button class="game-select-button" data-game="drawingImpostor">Rysunkowy Impostor</button>
+        </div>
     </div>
 
     <div id="lobby-container" style="display: none;">
@@ -23,6 +31,7 @@
             <input type="password" id="room-password-input" placeholder="Hasło (opcjonalne)">
             <button type="submit">Stwórz pokój</button>
         </form>
+        <button id="back-to-game-selection">Wróć do wyboru gry</button>
     </div>
 
     <div id="room-container" style="display: none;">
@@ -42,20 +51,54 @@
         </form>
         <div id="continue-voting-container" style="display: none;">
             <h3>Co robimy dalej?</h3>
-            <button id="continue-button">Kontynuuj</button>
-            <button id="vote-impostor-button">Głosuj na impostora</button>
+            <button class="continue-button">Kontynuuj</button>
+            <button class="vote-impostor-button">Głosuj na impostora</button>
         </div>
-        <div id="voting-container" style="display: none;">
+        <div class="voting-container" style="display: none;">
             <h3>Głosowanie</h3>
-            <div id="voting-options"></div>
+            <div class="voting-options"></div>
         </div>
         <button id="guess-word-button" style="display: none;">Zgadnij hasło</button>
+    </div>
+
+    <div id="drawing-game-container" style="display: none;">
+        <h2 id="drawing-game-word-header"></h2>
+        <p id="drawing-game-info"></p>
+        <canvas id="drawing-canvas" width="500" height="500"></canvas>
+        <button id="drawing-next-turn-button">Następna tura</button>
+        <div id="drawing-continue-voting-container" style="display: none;">
+            <h3>Co robimy dalej?</h3>
+            <button class="continue-button">Kontynuuj</button>
+            <button class="vote-impostor-button">Głosuj na impostora</button>
+        </div>
+        <div class="voting-container" style="display: none;">
+            <h3>Głosowanie</h3>
+            <div class="voting-options"></div>
+        </div>
+        <button id="drawing-guess-word-button" style="display: none;">Zgadnij hasło</button>
     </div>
 
     <div id="game-over-container" style="display: none;">
         <h2 id="game-over-winner"></h2>
         <p id="game-over-reason"></p>
         <button id="back-to-lobby-button">Powrót do poczekalni</button>
+    </div>
+
+    <!-- Custom Modals -->
+    <div id="custom-alert" class="modal" style="display: none;">
+        <div class="modal-content">
+            <p id="custom-alert-message"></p>
+            <button id="custom-alert-ok">OK</button>
+        </div>
+    </div>
+
+    <div id="custom-prompt" class="modal" style="display: none;">
+        <div class="modal-content">
+            <p id="custom-prompt-message"></p>
+            <input type="text" id="custom-prompt-input">
+            <button id="custom-prompt-ok">OK</button>
+            <button id="custom-prompt-cancel">Anuluj</button>
+        </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
