@@ -15,8 +15,41 @@
         </form>
     </div>
 
+    <div id="lobby-container" style="display: none;">
+        <h2>Poczekalnia</h2>
+        <div id="rooms-list"></div>
+        <form id="create-room-form">
+            <input type="text" id="room-name-input" placeholder="Nazwa pokoju" required>
+            <input type="password" id="room-password-input" placeholder="Hasło (opcjonalne)">
+            <button type="submit">Stwórz pokój</button>
+        </form>
+    </div>
+
+    <div id="room-container" style="display: none;">
+        <h2 id="room-name-header"></h2>
+        <div id="players-list"></div>
+        <button id="start-game-button" style="display: none;">Start</button>
+        <button id="leave-room-button">Opuść pokój</button>
+    </div>
+
     <div id="game-container" style="display: none;">
-        <!-- Tutaj pojawi się zawartość gry -->
+        <h2 id="game-word-header"></h2>
+        <p id="game-info"></p>
+        <div id="associations-list"></div>
+        <form id="association-form">
+            <input type="text" id="association-input" placeholder="Twoje skojarzenie" required>
+            <button type="submit">Wyślij</button>
+        </form>
+        <div id="continue-voting-container" style="display: none;">
+            <h3>Co robimy dalej?</h3>
+            <button id="continue-button">Kontynuuj</button>
+            <button id="vote-impostor-button">Głosuj na impostora</button>
+        </div>
+        <div id="voting-container" style="display: none;">
+            <h3>Głosowanie</h3>
+            <div id="voting-options"></div>
+        </div>
+        <button id="guess-word-button" style="display: none;">Zgadnij hasło</button>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>

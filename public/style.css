@@ -1,4 +1,93 @@
-/* Tutaj znajdą się style CSS */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
 body {
-    font-family: sans-serif;
+    font-family: 'Roboto', sans-serif;
+    background-color: #1a1a1a;
+    color: #f0f0f0;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+h1, h2 {
+    color: #ffffff;
+    text-align: center;
+}
+
+div[id$="-container"] {
+    background-color: #2c2c2c;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    width: 100%;
+    max-width: 500px;
+    box-sizing: border-box;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+input[type="text"],
+input[type="password"] {
+    background-color: #3a3a3a;
+    color: #f0f0f0;
+    border: 1px solid #555;
+    border-radius: 5px;
+    padding: 12px;
+    font-size: 16px;
+}
+
+input::placeholder {
+    color: #aaa;
+}
+
+button {
+    background-color: #007bff;
+    color: #ffffff;
+    border: none;
+    border-radius: 5px;
+    padding: 12px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+#rooms-list {
+    margin-bottom: 20px;
+}
+
+#rooms-list > div {
+    background-color: #3a3a3a;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#players-list > div {
+    background-color: #3a3a3a;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+#leave-room-button {
+    background-color: #dc3545;
+}
+
+#leave-room-button:hover {
+    background-color: #c82333;
 }
