@@ -1,0 +1,31 @@
+version: '3'
+
+services:
+  traefik:
+    image: "traefik:v2.9"
+    container_name: "traefik"
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=twoj-email@example.com" # Zmień na swój email
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "443:443"
+      - "8088:8080" # Zmieniono port panelu Traefika
+    volumes:
+      - "./letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+  app:
+    build: .
+    container_name: "slowny-impostor-app"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`gry.xsus.site`)"
+      - "traefik.http.routers.app.entrypoints=websecure"
+      - "traefik.http.routers.app.tls.certresolver=myresolver"
+      - "traefik.http.services.app.loadbalancer.server.port=3000"
+    restart: always
