@@ -4,9 +4,23 @@ const socketIo = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
+
+// --- Konfiguracja CORS ---
+const allowedOrigins = [
+    "http://localhost:3000",
+    "https://gry.xsus.site"
+];
+
 const io = new socketIo.Server(server, {
     cors: {
-        origin: "http://localhost:3000",
+        origin: (origin, callback) => {
+            // Zezwalaj na połączenia bez 'origin' (np. z testów lub aplikacji mobilnych)
+            if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
         methods: ["GET", "POST"]
     }
 });
