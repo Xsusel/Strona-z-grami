@@ -1,13 +1,15 @@
 const socket = io(window.location.host);
 
 // Containers
-const loginContainer = document.getElementById('login-container');
-const gameSelectionContainer = document.getElementById('game-selection-container');
-const lobbyContainer = document.getElementById('lobby-container');
-const roomContainer = document.getElementById('room-container');
-const gameContainer = document.getElementById('game-container');
-const drawingGameContainer = document.getElementById('drawing-game-container');
-const gameOverContainer = document.getElementById('game-over-container');
+const containers = {
+    login: document.getElementById('login-container'),
+    gameSelection: document.getElementById('game-selection-container'),
+    lobby: document.getElementById('lobby-container'),
+    room: document.getElementById('room-container'),
+    game: document.getElementById('game-container'),
+    drawingGame: document.getElementById('drawing-game-container'),
+    gameOver: document.getElementById('game-over-container')
+};
 
 // Modals
 const customAlert = document.getElementById('custom-alert');
@@ -71,9 +73,16 @@ const gameOverWinner = document.getElementById('game-over-winner');
 const gameOverReason = document.getElementById('game-over-reason');
 const backToLobbyButton = document.getElementById('back-to-lobby-button');
 
-
 let currentRoom = null;
 let currentGameType = null;
+
+// --- Animation and Display Logic ---
+function showContainer(containerName) {
+    Object.values(containers).forEach(container => {
+        container.style.display = 'none';
+    });
+    containers[containerName].style.display = 'block';
+}
 
 // Modal Logic
 function showAlert(message) {
@@ -119,22 +128,19 @@ loginForm.addEventListener('submit', (e) => {
 });
 
 socket.on('nickname-set', () => {
-    loginContainer.style.display = 'none';
-    gameSelectionContainer.style.display = 'block';
+    showContainer('gameSelection');
 });
 
 // Game Selection Logic
 gameSelectButtons.forEach(button => {
     button.addEventListener('click', () => {
         currentGameType = button.dataset.game;
-        gameSelectionContainer.style.display = 'none';
-        lobbyContainer.style.display = 'block';
+        showContainer('lobby');
     });
 });
 
 backToGameSelectionButton.addEventListener('click', () => {
-    lobbyContainer.style.display = 'none';
-    gameSelectionContainer.style.display = 'block';
+    showContainer('gameSelection');
 });
 
 // Lobby Logic
@@ -153,7 +159,10 @@ socket.on('update-rooms', (rooms) => {
         const room = rooms[roomName];
         if (room.gameType === currentGameType) {
             const roomElement = document.createElement('div');
-            roomElement.innerText = `${roomName} (${Object.keys(room.players).length}/10)`;
+            roomElement.className = 'room';
+            roomElement.innerHTML = `
+                <span>${roomName} (${Object.keys(room.players).length}/10)</span>
+            `;
             const joinButton = document.createElement('button');
             joinButton.innerText = 'Dołącz';
             joinButton.onclick = () => {
@@ -176,8 +185,7 @@ socket.on('update-rooms', (rooms) => {
 // Room Logic
 socket.on('room-joined', (roomName, room) => {
     currentRoom = roomName;
-    lobbyContainer.style.display = 'none';
-    roomContainer.style.display = 'block';
+    showContainer('room');
     roomNameHeader.innerText = roomName;
     updatePlayersList(room.players);
     if (socket.id === room.host) {
@@ -199,8 +207,7 @@ leaveRoomButton.addEventListener('click', () => {
     if (currentRoom) {
         socket.emit('leave-room', currentRoom);
         currentRoom = null;
-        roomContainer.style.display = 'none';
-        lobbyContainer.style.display = 'block';
+        showContainer('lobby');
     }
 });
 
@@ -216,8 +223,7 @@ function updatePlayersList(players) {
 // Game Logic
 socket.on('game-started', (data) => {
     if (data.game === 'drawingImpostor') {
-        roomContainer.style.display = 'none';
-        drawingGameContainer.style.display = 'block';
+        showContainer('drawingGame');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         if (data.word) {
@@ -227,8 +233,7 @@ socket.on('game-started', (data) => {
             drawingGuessWordButton.style.display = 'block';
         }
     } else {
-        roomContainer.style.display = 'none';
-        gameContainer.style.display = 'block';
+        showContainer('game');
         associationsList.innerHTML = '';
 
         if (data.word) {
@@ -369,19 +374,19 @@ drawingNextTurnButton.addEventListener('click', () => {
 
 
 socket.on('game-over', (data) => {
-    gameContainer.style.display = 'none';
-    drawingGameContainer.style.display = 'none';
-    gameOverContainer.style.display = 'block';
+    showContainer('gameOver');
     gameOverWinner.innerText = `Zwycięzca: ${data.winner}`;
     gameOverReason.innerText = data.reason;
 });
 
 backToLobbyButton.addEventListener('click', () => {
-    gameOverContainer.style.display = 'none';
-    lobbyContainer.style.display = 'block';
+    showContainer('lobby');
 });
 
 // Error Handling
 socket.on('error-message', (message) => {
     showAlert(message);
 });
+
+// Initial setup
+showContainer('login');
