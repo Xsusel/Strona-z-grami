@@ -132,6 +132,30 @@ socket.on('notification', (data) => {
     alert(data.text);
 });
 
+socket.on('auction-started', (data) => {
+    showAuctionModal(data.tileName);
+});
+
+socket.on('auction-update', (data) => {
+    const bidInfo = document.getElementById('auction-bid-info');
+    bidInfo.textContent = `Najwyższa oferta: $${data.bid} (${data.bidder})`;
+});
+
+
+function showAuctionModal(tileName) {
+    const content = `
+        <p>Licytacja o: <strong>${tileName}</strong></p>
+        <div id="auction-bid-info">Aktualna oferta: $0</div>
+        <input type="number" id="bid-input" placeholder="Twoja oferta">
+        <button id="place-bid-button">Licytuj</button>
+    `;
+    showModal('Aukcja', content, []);
+    document.getElementById('place-bid-button').onclick = () => {
+        const bid = parseInt(document.getElementById('bid-input').value);
+        socket.emit('game-action', 'place-bid', { roomId, bid });
+    };
+}
+
 
 function showModal(title, text, buttons) {
     modalTitle.textContent = title;
@@ -168,6 +192,18 @@ function updatePlayerPanel() {
             <strong>${player.nickname}</strong>: $${player.money}
             <small>(Poz: ${player.position})</small>
         `;
+
+        const propertiesDiv = document.createElement('div');
+        propertiesDiv.classList.add('properties-list');
+        player.properties.forEach(propIndex => {
+            const prop = boardLayout[propIndex];
+            const propEl = document.createElement('div');
+            propEl.textContent = prop.name;
+            propEl.style.color = prop.color;
+            propertiesDiv.appendChild(propEl);
+        });
+        playerDiv.appendChild(propertiesDiv);
+
         if (id === currentPlayerId) {
             playerDiv.style.fontWeight = 'bold';
         }

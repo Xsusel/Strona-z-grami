@@ -77,7 +77,8 @@ function createGameState(playerIds, nicknames) {
         communityChestDeck: [...communityChestCards].sort(() => Math.random() - 0.5),
         currentPlayerIndex: 0,
         dice: [0, 0],
-        turnInProgress: false
+        turnInProgress: false,
+        auction: null
     };
 }
 
@@ -181,6 +182,24 @@ function handleAction(io, socket, room, roomName, action, data) {
             player.money -= housePrice;
             tileState.houses++;
             io.to(roomName).emit('game-state-update', gameState);
+        }
+    } else if (action === 'decline-purchase') {
+        const player = gameState.players[socket.id];
+        const tile = boardLayout[player.position];
+        gameState.auction = {
+            tilePosition: player.position,
+            currentBid: 0,
+            highestBidder: null,
+            participants: Object.keys(gameState.players)
+        };
+        io.to(roomName).emit('auction-started', { tileName: tile.name });
+    } else if (action === 'place-bid') {
+        const { bid } = data;
+        const { auction } = gameState;
+        if (auction && bid > auction.currentBid && gameState.players[socket.id].money >= bid) {
+            auction.currentBid = bid;
+            auction.highestBidder = socket.id;
+            io.to(roomName).emit('auction-update', { bidder: gameState.players[socket.id].nickname, bid });
         }
     }
 }
