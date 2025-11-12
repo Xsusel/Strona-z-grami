@@ -1,392 +1,185 @@
 const socket = io(window.location.host);
 
-// Containers
-const containers = {
-    login: document.getElementById('login-container'),
-    gameSelection: document.getElementById('game-selection-container'),
-    lobby: document.getElementById('lobby-container'),
-    room: document.getElementById('room-container'),
-    game: document.getElementById('game-container'),
-    drawingGame: document.getElementById('drawing-game-container'),
-    gameOver: document.getElementById('game-over-container')
-};
-
-// Modals
-const customAlert = document.getElementById('custom-alert');
-const customAlertMessage = document.getElementById('custom-alert-message');
-const customAlertOk = document.getElementById('custom-alert-ok');
-const customPrompt = document.getElementById('custom-prompt');
-const customPromptMessage = document.getElementById('custom-prompt-message');
-const customPromptInput = document.getElementById('custom-prompt-input');
-const customPromptOk = document.getElementById('custom-prompt-ok');
-const customPromptCancel = document.getElementById('custom-prompt-cancel');
-
-// Login
-const loginForm = document.getElementById('login-form');
+// --- Elementy DOM ---
+const mainMenuContainer = document.getElementById('main-menu-container');
+const nicknameForm = document.getElementById('nickname-form');
 const nicknameInput = document.getElementById('nickname-input');
+const menuButtons = document.getElementById('menu-buttons');
+const createGameButton = document.getElementById('create-game-button');
 
-// Game Selection
-const gameSelectButtons = document.querySelectorAll('.game-select-button');
-
-// Lobby
-const roomsList = document.getElementById('rooms-list');
-const createRoomForm = document.getElementById('create-room-form');
-const roomNameInput = document.getElementById('room-name-input');
-const roomPasswordInput = document.getElementById('room-password-input');
-const backToGameSelectionButton = document.getElementById('back-to-game-selection');
-
-// Room
-const roomNameHeader = document.getElementById('room-name-header');
-const playersList = document.getElementById('players-list');
+const inviteLinkContainer = document.getElementById('invite-link-container');
+const inviteLinkInput = document.getElementById('invite-link-input');
 const startGameButton = document.getElementById('start-game-button');
-const leaveRoomButton = document.getElementById('leave-room-button');
 
-// Word Game
-const gameWordHeader = document.getElementById('game-word-header');
-const gameInfo = document.getElementById('game-info');
-const associationsList = document.getElementById('associations-list');
-const associationForm = document.getElementById('association-form');
-const associationInput = document.getElementById('association-input');
-const continueVotingContainer = document.getElementById('continue-voting-container');
-const wordContinueButton = document.querySelector('#game-container .continue-button');
-const wordVoteImpostorButton = document.querySelector('#game-container .vote-impostor-button');
-const wordVotingContainer = document.querySelector('#game-container .voting-container');
-const wordVotingOptions = document.querySelector('#game-container .voting-options');
-const guessWordButton = document.getElementById('guess-word-button');
+const gameContainer = document.getElementById('game-container');
+const monopolyBoard = document.getElementById('monopoly-board');
+const playerPanel = document.getElementById('player-panel');
 
-// Drawing Game
-const drawingGameWordHeader = document.getElementById('drawing-game-word-header');
-const drawingGameInfo = document.getElementById('drawing-game-info');
-const canvas = document.getElementById('drawing-canvas');
-const ctx = canvas.getContext('2d');
-const drawingNextTurnButton = document.getElementById('drawing-next-turn-button');
-const drawingContinueVotingContainer = document.getElementById('drawing-continue-voting-container');
-const drawingContinueButton = document.querySelector('#drawing-game-container .continue-button');
-const drawingVoteImpostorButton = document.querySelector('#drawing-game-container .vote-impostor-button');
-const drawingVotingContainer = document.querySelector('#drawing-game-container .voting-container');
-const drawingVotingOptions = document.querySelector('#drawing-game-container .voting-options');
-const drawingGuessWordButton = document.getElementById('drawing-guess-word-button');
-let drawing = false;
+// --- Stan gry ---
+let nickname = '';
+let roomId = '';
 
-// Game Over
-const gameOverWinner = document.getElementById('game-over-winner');
-const gameOverReason = document.getElementById('game-over-reason');
-const backToLobbyButton = document.getElementById('back-to-lobby-button');
-
-let currentRoom = null;
-let currentGameType = null;
-
-// --- Animation and Display Logic ---
-function showContainer(containerName) {
-    Object.values(containers).forEach(container => {
-        container.style.display = 'none';
+function showContainer(containerId) {
+    const containers = ['main-menu-container', 'invite-link-container', 'game-container'];
+    containers.forEach(id => {
+        const el = document.getElementById(id);
+        if (id === containerId) {
+            el.style.display = 'block';
+        } else {
+            el.style.display = 'none';
+        }
     });
-    containers[containerName].style.display = 'block';
 }
 
-// Modal Logic
-function showAlert(message) {
-    customAlertMessage.innerText = message;
-    customAlert.style.display = 'flex';
-}
 
-customAlertOk.addEventListener('click', () => {
-    customAlert.style.display = 'none';
-});
-
-function showPrompt(message, callback) {
-    customPromptMessage.innerText = message;
-    customPrompt.style.display = 'flex';
-
-    const okListener = () => {
-        callback(customPromptInput.value);
-        cleanup();
-    };
-
-    const cancelListener = () => {
-        callback(null);
-        cleanup();
-    };
-
-    const cleanup = () => {
-        customPrompt.style.display = 'none';
-        customPromptOk.removeEventListener('click', okListener);
-        customPromptCancel.removeEventListener('click', cancelListener);
-    };
-
-    customPromptOk.addEventListener('click', okListener);
-    customPromptCancel.addEventListener('click', cancelListener);
-}
-
-// Login Logic
-loginForm.addEventListener('submit', (e) => {
+// --- Logika menu ---
+nicknameForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const nickname = nicknameInput.value;
+    nickname = nicknameInput.value;
     if (nickname) {
         socket.emit('set-nickname', nickname);
+        nicknameForm.style.display = 'none';
+        menuButtons.style.display = 'block';
     }
 });
+
+createGameButton.addEventListener('click', () => {
+    socket.emit('create-room');
+});
+
+socket.on('room-created', (newRoomId) => {
+    roomId = newRoomId;
+    const inviteLink = `${window.location.origin}/room/${roomId}`;
+    inviteLinkInput.value = inviteLink;
+    showContainer('invite-link-container');
+    history.pushState(null, '', `/room/${roomId}`);
+    socket.emit('join-room', roomId);
+});
+
+// Dołączanie do gry z linku
+const pathRoomId = window.location.pathname.split('/').pop();
+if (pathRoomId && pathRoomId.length > 1) { // Prosta walidacja czy to uuid
+    roomId = pathRoomId;
+    mainMenuContainer.style.display = 'block'; // Pokaż menu, żeby podać nick
+}
 
 socket.on('nickname-set', () => {
-    showContainer('gameSelection');
-});
-
-// Game Selection Logic
-gameSelectButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        currentGameType = button.dataset.game;
-        showContainer('lobby');
-    });
-});
-
-backToGameSelectionButton.addEventListener('click', () => {
-    showContainer('gameSelection');
-});
-
-// Lobby Logic
-createRoomForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const roomName = roomNameInput.value;
-    const password = roomPasswordInput.value;
-    if (roomName && currentGameType) {
-        socket.emit('create-room', roomName, password, currentGameType);
+    if (roomId) {
+        socket.emit('join-room', roomId);
     }
 });
 
-socket.on('update-rooms', (rooms) => {
-    roomsList.innerHTML = '';
-    for (const roomName in rooms) {
-        const room = rooms[roomName];
-        if (room.gameType === currentGameType) {
-            const roomElement = document.createElement('div');
-            roomElement.className = 'room';
-            roomElement.innerHTML = `
-                <span>${roomName} (${Object.keys(room.players).length}/10)</span>
-            `;
-            const joinButton = document.createElement('button');
-            joinButton.innerText = 'Dołącz';
-            joinButton.onclick = () => {
-                if (room.password) {
-                    showPrompt('Podaj hasło:', (password) => {
-                        if (password) {
-                            socket.emit('join-room', roomName, password);
-                        }
-                    });
-                } else {
-                    socket.emit('join-room', roomName, '');
-                }
-            };
-            roomElement.appendChild(joinButton);
-            roomsList.appendChild(roomElement);
-        }
+socket.on('room-joined', (joinedRoomId, room) => {
+    if (window.location.pathname.includes(joinedRoomId)) {
+        showContainer('invite-link-container');
+        updatePlayersList(room.players);
     }
 });
 
-// Room Logic
-socket.on('room-joined', (roomName, room) => {
-    currentRoom = roomName;
-    showContainer('room');
-    roomNameHeader.innerText = roomName;
-    updatePlayersList(room.players);
-    if (socket.id === room.host) {
-        startGameButton.style.display = 'block';
-    }
-});
-
-startGameButton.addEventListener('click', () => {
-    if (currentRoom) {
-        socket.emit('start-game', currentRoom);
-    }
-});
 
 socket.on('update-players', (players) => {
     updatePlayersList(players);
 });
 
-leaveRoomButton.addEventListener('click', () => {
-    if (currentRoom) {
-        socket.emit('leave-room', currentRoom);
-        currentRoom = null;
-        showContainer('lobby');
-    }
-});
 
 function updatePlayersList(players) {
-    playersList.innerHTML = '';
-    for (const playerId in players) {
-        const playerElement = document.createElement('div');
-        playerElement.innerText = players[playerId];
-        playersList.appendChild(playerElement);
-    }
+    // Tutaj będzie logika aktualizacji listy graczy w panelu
+    console.log("Gracze w pokoju:", players);
 }
 
-// Game Logic
-socket.on('game-started', (data) => {
-    if (data.game === 'drawingImpostor') {
-        showContainer('drawingGame');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        if (data.word) {
-            drawingGameWordHeader.innerText = `Twoje słowo to: ${data.word}`;
+startGameButton.addEventListener('click', () => {
+    socket.emit('start-game', roomId);
+});
+
+
+// --- Logika gry ---
+socket.on('game-started', (gameState) => {
+    showContainer('game-container');
+    renderBoard(gameState.boardState);
+});
+
+const boardLayout = [
+    { name: "Start", type: "corner" },
+    { name: "Kondek", price: 60, color: "#a52a2a", type: "property" },
+    { name: "Kasa Społeczna", type: "community-chest" },
+    { name: "Wiejska", price: 60, color: "#a52a2a", type: "property" },
+    { name: "Podatek Dochodowy", type: "tax" },
+    { name: "Kolej Południowa", price: 200, type: "railroad" },
+    { name: "Szewska", price: 100, color: "#87ceeb", type: "property" },
+    { name: "Szansa", type: "chance" },
+    { name: "Dluga", price: 100, color: "#87ceeb", type: "property" },
+    { name: "Slawkowska", price: 120, color: "#87ceeb", type: "property" },
+    { name: "Więzienie", type: "corner" },
+    { name: "Miodowa", price: 140, color: "#da70d6", type: "property" },
+    { name: "Elektrownia", price: 150, type: "utility" },
+    { name: "Stradom", price: 140, color: "#da70d6", type: "property" },
+    { name: "Podwale", price: 160, color: "#da70d6", type: "property" },
+    { name: "Kolej Zachodnia", price: 200, type: "railroad" },
+    { name: "Rynek Główny", price: 180, color: "#ffa500", type: "property" },
+    { name: "Kasa Społeczna", type: "community-chest" },
+    { name: "Plac Wszystkich Swietych", price: 180, color: "#ffa500", type: "property" },
+    { name: "Bulwary", price: 200, color: "#ffa500", type: "property" },
+    { name: "Bezpłatny Parking", type: "corner" },
+    { name: "Karmelicka", price: 220, color: "#ff0000", type: "property" },
+    { name: "Szansa", type: "chance" },
+    { name: "Aleje Trzech Wieszczów", price: 220, color: "#ff0000", type: "property" },
+    { name: "Plac Sikorskiego", price: 240, color: "#ff0000", type: "property" },
+    { name: "Kolej Północna", price: 200, type: "railroad" },
+    { name: "Ulica 1 Maja", price: 260, color: "#ffff00", type: "property" },
+    { name: "Wodociągi", price: 150, type: "utility" },
+    { name: "Ulica 3 Maja", price: 260, color: "#ffff00", type: "property" },
+    { name: "Ulica Piłsudskiego", price: 280, color: "#ffff00", type: "property" },
+    { name: "Idziesz do Więzienia", type: "corner" },
+    { name: "Aleja Waszyngtona", price: 300, color: "#008000", type: "property" },
+    { name: "Plac Inwalidów", price: 300, color: "#008000", type: "property" },
+    { name: "Kasa Społeczna", type: "community-chest" },
+    { name: "Ulica Focha", price: 320, color: "#008000", type: "property" },
+    { name: "Kolej Wschodnia", price: 200, type: "railroad" },
+    { name: "Szansa", type: "chance" },
+    { name: "Ulica Reymonta", price: 350, color: "#0000ff", type: "property" },
+    { name: "Podatek od Luksusu", type: "tax" },
+    { name: "Aleja Mickiewicza", price: 400, color: "#0000ff", type: "property" }
+];
+
+function renderBoard() {
+    monopolyBoard.innerHTML = '';
+    boardLayout.forEach((tileData, i) => {
+        const tile = document.createElement('div');
+        tile.classList.add('tile');
+
+        let row, col;
+        if (i < 10) { // Dolny rząd
+            row = 11; col = 11 - i;
+            tile.classList.add('bottom-row');
+        } else if (i < 20) { // Lewy rząd
+            row = 11 - (i - 10); col = 1;
+            tile.classList.add('left-row');
+        } else if (i < 30) { // Górny rząd
+            row = 1; col = 1 + (i - 20);
+            tile.classList.add('top-row');
+        } else { // Prawy rząd
+            row = 1 + (i - 30); col = 11;
+            tile.classList.add('right-row');
+        }
+
+        tile.style.gridRow = row;
+        tile.style.gridColumn = col;
+
+        if (tileData.type === 'property') {
+            tile.innerHTML = `
+                <div class="color-bar" style="background-color: ${tileData.color};"></div>
+                <div class="name">${tileData.name}</div>
+                <div class="price">$${tileData.price}</div>
+            `;
         } else {
-            drawingGameWordHeader.innerText = 'Jesteś impostorem!';
-            drawingGuessWordButton.style.display = 'block';
+            tile.innerHTML = `<div class="name">${tileData.name}</div>`;
         }
-    } else {
-        showContainer('game');
-        associationsList.innerHTML = '';
 
-        if (data.word) {
-            gameWordHeader.innerText = `Twoje słowo to: ${data.word}`;
-            gameInfo.innerText = 'Wpisz skojarzenie z tym słowem.';
-        } else {
-            gameWordHeader.innerText = 'Jesteś impostorem!';
-            gameInfo.innerText = `Twoja podpowiedź to: ${data.hint}`;
-            guessWordButton.style.display = 'block';
+        if (tileData.type === 'corner') {
+            tile.classList.add('corner');
         }
-    }
-});
 
-socket.on('next-turn', (playerName) => {
-    if (currentGameType === 'drawingImpostor') {
-        drawingGameInfo.innerText = `Ruch gracza: ${playerName}`;
-    } else {
-        gameInfo.innerText = `Ruch gracza: ${playerName}`;
-        associationInput.disabled = playerName !== nicknameInput.value;
-    }
-});
-
-// Word Game Logic
-associationForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const association = associationInput.value;
-    if (association && currentRoom) {
-        socket.emit('game-action', 'submit-association', { roomName: currentRoom, association });
-        associationInput.value = '';
-    }
-});
-
-socket.on('new-association', (data) => {
-    const associationElement = document.createElement('div');
-    associationElement.innerText = `${data.player}: ${data.association}`;
-    associationsList.appendChild(associationElement);
-});
-
-socket.on('vote-to-continue', () => {
-    if (currentGameType === 'drawingImpostor') {
-        drawingContinueVotingContainer.style.display = 'block';
-    } else {
-        continueVotingContainer.style.display = 'block';
-    }
-});
-
-wordContinueButton.addEventListener('click', () => {
-    socket.emit('game-action', 'vote-continue', { roomName: currentRoom, choice: 'continue' });
-    continueVotingContainer.style.display = 'none';
-});
-
-wordVoteImpostorButton.addEventListener('click', () => {
-    socket.emit('game-action', 'vote-continue', { roomName: currentRoom, choice: 'impostor' });
-    continueVotingContainer.style.display = 'none';
-});
-
-socket.on('voting-phase', (players) => {
-    const [container, options] = currentGameType === 'drawingImpostor'
-        ? [drawingVotingContainer, drawingVotingOptions]
-        : [wordVotingContainer, wordVotingOptions];
-
-    container.style.display = 'block';
-    options.innerHTML = '';
-    for (const playerId in players) {
-        const voteButton = document.createElement('button');
-        voteButton.innerText = players[playerId];
-        voteButton.onclick = () => {
-            socket.emit('game-action', 'vote', { roomName: currentRoom, votedPlayerId: playerId });
-            container.style.display = 'none';
-        };
-        options.appendChild(voteButton);
-    }
-});
-
-guessWordButton.addEventListener('click', () => {
-    showPrompt('Jakie jest hasło?', (guess) => {
-        if (guess && currentRoom) {
-            socket.emit('game-action', 'guess-word', { roomName: currentRoom, guess });
-        }
+        monopolyBoard.appendChild(tile);
     });
-});
-
-// Drawing Game Logic
-drawingContinueButton.addEventListener('click', () => {
-    socket.emit('game-action', 'vote-continue', { roomName: currentRoom, choice: 'continue' });
-    drawingContinueVotingContainer.style.display = 'none';
-});
-
-drawingVoteImpostorButton.addEventListener('click', () => {
-    socket.emit('game-action', 'vote-continue', { roomName: currentRoom, choice: 'impostor' });
-    drawingContinueVotingContainer.style.display = 'none';
-});
-
-drawingGuessWordButton.addEventListener('click', () => {
-    showPrompt('Jakie jest hasło?', (guess) => {
-        if (guess && currentRoom) {
-            socket.emit('game-action', 'guess-word', { roomName: currentRoom, guess });
-        }
-    });
-});
-
-canvas.addEventListener('mousedown', (e) => {
-    drawing = true;
-    draw(e);
-});
-
-canvas.addEventListener('mouseup', () => {
-    drawing = false;
-    ctx.beginPath();
-});
-
-canvas.addEventListener('mousemove', draw);
-
-function draw(e) {
-    if (!drawing) return;
-    const rect = canvas.getBoundingClientRect();
-    const drawData = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-        type: e.type
-    };
-    socket.emit('game-action', 'draw', { roomName: currentRoom, drawData });
 }
-
-socket.on('update-canvas', (data) => {
-    if (data.type === 'mousedown') {
-        ctx.beginPath();
-        ctx.moveTo(data.x, data.y);
-    } else if (data.type === 'mousemove') {
-        ctx.lineTo(data.x, data.y);
-        ctx.stroke();
-    }
-});
-
-drawingNextTurnButton.addEventListener('click', () => {
-    socket.emit('game-action', 'next-turn', { roomName: currentRoom });
-});
-
-
-socket.on('game-over', (data) => {
-    showContainer('gameOver');
-    gameOverWinner.innerText = `Zwycięzca: ${data.winner}`;
-    gameOverReason.innerText = data.reason;
-});
-
-backToLobbyButton.addEventListener('click', () => {
-    showContainer('lobby');
-});
-
-// Error Handling
-socket.on('error-message', (message) => {
-    showAlert(message);
-});
-
-// Initial setup
-showContainer('login');
