@@ -65,6 +65,7 @@ function createGameState(playerIds, nicknames) {
             properties: [],
             inJail: false,
             jailTurns: 0,
+            doublesCount: 0,
             getOutOfJailFreeCards: 0
         };
     });
@@ -115,10 +116,42 @@ function handleAction(io, socket, room, roomName, action, data) {
         const currentTile = boardLayout[currentPlayer.position];
         handleTileLanding(io, socket, room, roomName, currentTile, currentPlayerId);
 
-        // Zmiana tury (tymczasowo, będzie bardziej złożona)
-        if (die1 !== die2) {
+        if (currentPlayer.inJail) {
+            if (die1 === die2) {
+                currentPlayer.inJail = false;
+                currentPlayer.jailTurns = 0;
+            } else {
+                currentPlayer.jailTurns++;
+                if (currentPlayer.jailTurns >= 3) {
+                    currentPlayer.money -= 50; // Zapłać kaucję
+                    currentPlayer.inJail = false;
+                    currentPlayer.jailTurns = 0;
+                }
+            }
+        }
+
+        if (!currentPlayer.inJail) {
+            const oldPosition = currentPlayer.position;
+            currentPlayer.position = (currentPlayer.position + die1 + die2) % 40;
+            if (currentPlayer.position < oldPosition) {
+                currentPlayer.money += 200;
+            }
+            const currentTile = boardLayout[currentPlayer.position];
+            handleTileLanding(io, socket, room, roomName, currentTile, currentPlayerId);
+        }
+
+        if (die1 === die2) {
+            currentPlayer.doublesCount++;
+            if (currentPlayer.doublesCount === 3) {
+                currentPlayer.position = 10;
+                currentPlayer.inJail = true;
+                currentPlayer.doublesCount = 0;
+            }
+        } else {
+            currentPlayer.doublesCount = 0;
             gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % playerIds.length;
         }
+
         gameState.turnInProgress = false;
 
         io.to(roomName).emit('game-state-update', gameState);
@@ -131,6 +164,22 @@ function handleAction(io, socket, room, roomName, action, data) {
             player.money -= tile.price;
             tileState.owner = socket.id;
             player.properties.push(player.position);
+            io.to(roomName).emit('game-state-update', gameState);
+        }
+    } else if (action === 'build-house') {
+        const { tilePosition } = data;
+        const player = gameState.players[socket.id];
+        const tile = boardLayout[tilePosition];
+        const tileState = gameState.boardState[tilePosition];
+        const housePrice = 50; // Uproszczona cena
+
+        const hasMonopoly = boardLayout
+            .filter(t => t.color === tile.color)
+            .every(t => gameState.boardState[boardLayout.indexOf(t)].owner === socket.id);
+
+        if (hasMonopoly && player.money >= housePrice && tileState.houses < 5) {
+            player.money -= housePrice;
+            tileState.houses++;
             io.to(roomName).emit('game-state-update', gameState);
         }
     }
@@ -152,10 +201,10 @@ function handleTileLanding(io, socket, room, roomName, tile, playerId) {
                 // Pobierz czynsz
                 const ownerId = tileState.owner;
                 const owner = gameState.players[ownerId];
-                // Uproszczony czynsz, do rozbudowy
-                const rent = tile.price / 10;
+                const rent = calculateRent(tile, tileState, owner, gameState);
                 player.money -= rent;
                 owner.money += rent;
+                io.to(roomName).emit('notification', { text: `${player.nickname} zapłacił $${rent} czynszu dla ${owner.nickname}` });
             }
             break;
         case 'tax':
@@ -194,6 +243,19 @@ function drawCard(deck, player, io, roomName) {
             player.getOutOfJailFreeCards++;
             break;
     }
+}
+
+function calculateRent(tile, tileState, owner, gameState) {
+    if (tile.type === 'property') {
+        const monopoly = boardLayout
+            .filter(t => t.color === tile.color)
+            .every(t => gameState.boardState[boardLayout.indexOf(t)].owner === tileState.owner);
+
+        // Na razie uproszczony czynsz, bez domów
+        return tile.price / 10 * (monopoly ? 2 : 1);
+    }
+    // ... logika dla kolei i utility
+    return 0;
 }
 
 function handleDisconnect(io, room, roomName) {
