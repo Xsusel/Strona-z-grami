@@ -6,20 +6,19 @@ const app = express();
 const server = http.createServer(app);
 
 // --- Konfiguracja CORS ---
-const allowedOrigins = [
-    "http://localhost:3000",
-    "https://gry.xsus.site"
-];
-
 const io = new socketIo.Server(server, {
     cors: {
         origin: (origin, callback) => {
-            // Zezwalaj na połączenia bez 'origin' (np. z testów lub aplikacji mobilnych)
-            if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-                callback(null, true);
-            } else {
-                callback(new Error('Not allowed by CORS'));
+            if (!origin) {
+                // Zezwalaj na połączenia bez 'origin'
+                return callback(null, true);
             }
+            const hostname = new URL(origin).hostname;
+            // Zezwalaj na localhost i wszystkie subdomeny xsus.site
+            if (hostname === "localhost" || hostname.endsWith(".xsus.site")) {
+                return callback(null, true);
+            }
+            callback(new Error('Not allowed by CORS'));
         },
         methods: ["GET", "POST"]
     }
@@ -93,7 +92,7 @@ io.on('connection', (socket) => {
     socket.on('start-game', (roomName) => {
         const room = rooms[roomName];
         if (room && gameHandlers[room.gameType]) {
-            gameHandlers[room.gameType].startGame(io, socket, room);
+            gameHandlers[room.gameType].startGame(io, socket, room, roomName);
         }
     });
 
@@ -101,7 +100,7 @@ io.on('connection', (socket) => {
         const { roomName } = data;
         const room = rooms[roomName];
         if (room && gameHandlers[room.gameType]) {
-            gameHandlers[room.gameType].handleAction(io, socket, room, action, data);
+            gameHandlers[room.gameType].handleAction(io, socket, room, roomName, action, data);
         }
     });
     // ---------------------------
@@ -127,7 +126,7 @@ io.on('connection', (socket) => {
                     room.host = Object.keys(room.players)[0];
                 }
                 if (room.gameStarted && gameHandlers[room.gameType]) {
-                     gameHandlers[room.gameType].handleDisconnect(io, room);
+                     gameHandlers[room.gameType].handleDisconnect(io, room, roomName);
                 }
             }
             io.emit('update-rooms', rooms);
