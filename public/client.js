@@ -19,6 +19,14 @@ const playerPanel = document.getElementById('player-panel');
 let nickname = '';
 let roomId = '';
 let myPlayerId = '';
+let gameState = null;
+const playerColors = ['#ff0000', '#0000ff', '#00ff00', '#ffff00'];
+
+const modal = document.getElementById('modal');
+const modalTitle = document.getElementById('modal-title');
+const modalText = document.getElementById('modal-text');
+const modalButtons = document.getElementById('modal-buttons');
+
 
 function showContainer(containerId) {
     const containers = ['main-menu-container', 'invite-link-container', 'game-container'];
@@ -58,7 +66,6 @@ socket.on('room-created', (newRoomId) => {
     socket.emit('join-room', roomId);
 });
 
-// Dołączanie do gry z linku
 const pathRoomId = window.location.pathname.split('/').pop();
 if (pathRoomId && pathRoomId.length > 1) {
     roomId = pathRoomId;
@@ -86,7 +93,6 @@ socket.on('update-players', (players) => {
 
 
 function updateLobbyPlayers(players) {
-    // Prosta implementacja, do rozbudowy w panelu gry
     console.log("Gracze w lobby:", players);
 }
 
@@ -97,49 +103,77 @@ startGameButton.addEventListener('click', () => {
 
 
 // --- Logika gry ---
-socket.on('game-started', (gameState) => {
+socket.on('game-started', (newGameState) => {
+    gameState = newGameState;
     showContainer('game-container');
     renderBoard();
-    updatePlayerPanel(gameState);
+    updatePlayerPanel();
 });
 
-socket.on('game-state-update', (gameState) => {
-    updatePlayerPanel(gameState);
-    // Tutaj logika aktualizacji pionków na planszy
+socket.on('game-state-update', (newGameState) => {
+    gameState = newGameState;
+    updatePlayerPanel();
+    renderBoard();
 });
 
 socket.on('offer-purchase', (data) => {
-    const buy = confirm(`Czy chcesz kupić ${data.tileName} za $${data.price}?`);
-    if (buy) {
-        socket.emit('game-action', 'buy-property', { roomId });
-    }
+    showModal('Oferta zakupu', `Czy chcesz kupić ${data.tileName} za $${data.price}?`, [
+        { text: 'Kup', callback: () => socket.emit('game-action', 'buy-property', { roomId }) },
+        { text: 'Ignoruj', callback: () => {} }
+    ]);
 });
 
 socket.on('card-drawn', (data) => {
-    alert(`Wylosowano kartę:\n\n${data.cardText}`);
+    showModal('Wylosowano kartę', data.cardText, [{ text: 'OK', callback: () => {} }]);
+});
+
+socket.on('notification', (data) => {
+    // Prosty alert, do rozbudowy na ładniejszy system notyfikacji
+    alert(data.text);
 });
 
 
-function updatePlayerPanel(gameState) {
+function showModal(title, text, buttons) {
+    modalTitle.textContent = title;
+    modalText.textContent = text;
+    modalButtons.innerHTML = '';
+    buttons.forEach(btnInfo => {
+        const button = document.createElement('button');
+        button.textContent = btnInfo.text;
+        button.onclick = () => {
+            hideModal();
+            btnInfo.callback();
+        };
+        modalButtons.appendChild(button);
+    });
+    modal.style.display = 'flex';
+}
+
+function hideModal() {
+    modal.style.display = 'none';
+}
+
+
+function updatePlayerPanel() {
     playerPanel.innerHTML = '<h3>Gracze</h3>';
     const playerIds = Object.keys(gameState.players);
     const currentPlayerId = playerIds[gameState.currentPlayerIndex];
 
-    playerIds.forEach(id => {
+    playerIds.forEach((id, index) => {
         const player = gameState.players[id];
         const playerDiv = document.createElement('div');
+        playerDiv.style.borderLeft = `5px solid ${playerColors[index]}`;
+        playerDiv.style.paddingLeft = '10px';
         playerDiv.innerHTML = `
             <strong>${player.nickname}</strong>: $${player.money}
             <small>(Poz: ${player.position})</small>
         `;
         if (id === currentPlayerId) {
             playerDiv.style.fontWeight = 'bold';
-            playerDiv.style.color = 'green';
         }
         playerPanel.appendChild(playerDiv);
     });
 
-    // Dodanie przycisku do rzutu kostką
     if (myPlayerId === currentPlayerId) {
         const rollButton = document.createElement('button');
         rollButton.textContent = 'Rzuć kostką';
@@ -196,6 +230,8 @@ const boardLayout = [
 
 function renderBoard() {
     monopolyBoard.innerHTML = '';
+    const playerIds = Object.keys(gameState.players);
+
     boardLayout.forEach((tileData, i) => {
         const tile = document.createElement('div');
         tile.classList.add('tile');
@@ -220,7 +256,7 @@ function renderBoard() {
 
         if (tileData.type === 'property') {
             tile.innerHTML = `
-                <div class.color-bar" style="background-color: ${tileData.color};"></div>
+                <div class="color-bar" style="background-color: ${tileData.color};"></div>
                 <div class="name">${tileData.name}</div>
                 <div class="price">$${tileData.price}</div>
             `;
@@ -230,6 +266,13 @@ function renderBoard() {
 
         if (tileData.type === 'corner') {
             tile.classList.add('corner');
+        }
+
+        const tileState = gameState.boardState[i];
+        if (tileState.owner) {
+            const ownerIndex = playerIds.indexOf(tileState.owner);
+            tile.style.borderColor = playerColors[ownerIndex];
+            tile.style.borderWidth = '3px';
         }
 
         monopolyBoard.appendChild(tile);

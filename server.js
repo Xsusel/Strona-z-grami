@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const socketIo = require('socket.io');
 const { v4: uuidv4 } = require('uuid');
 const monopolyGame = require('./games/monopoly');
@@ -21,17 +22,14 @@ const io = new socketIo.Server(server, {
 });
 
 const rooms = {};
+const publicPath = path.join(__dirname, 'public');
 
-app.use(express.static('public'));
+// Serwowanie plików statycznych
+app.use(express.static(publicPath));
 
-// Serve the main page
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/public/index.html');
-});
-
-// Serve the game page for a specific room
-app.get('/room/:roomId', (req, res) => {
-    res.sendFile(__dirname + '/public/index.html');
+// Wszystkie niezdefiniowane ścieżki (w tym '/' i '/room/:roomId') serwują główny plik gry
+app.get('*', (req, res) => {
+    res.sendFile(path.join(publicPath, 'index.html'));
 });
 
 
