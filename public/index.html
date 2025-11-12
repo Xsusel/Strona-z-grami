@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="login-container">
+    <div id="login-container" class="container">
         <h1>Witaj!</h1>
         <form id="login-form">
             <input type="text" id="nickname-input" placeholder="Podaj swój nick" required>
@@ -15,7 +15,7 @@
         </form>
     </div>
 
-    <div id="game-selection-container" style="display: none;">
+    <div id="game-selection-container" class="container" style="display: none;">
         <h2>Wybierz Grę</h2>
         <div id="game-list">
             <button class="game-select-button" data-game="wordImpostor">Słowny Impostor</button>
@@ -23,25 +23,33 @@
         </div>
     </div>
 
-    <div id="lobby-container" style="display: none;">
+    <div id="lobby-container" class="container" style="display: none;">
         <h2>Poczekalnia</h2>
-        <div id="rooms-list"></div>
-        <form id="create-room-form">
-            <input type="text" id="room-name-input" placeholder="Nazwa pokoju" required>
-            <input type="password" id="room-password-input" placeholder="Hasło (opcjonalne)">
-            <button type="submit">Stwórz pokój</button>
-        </form>
+        <div class="lobby-layout">
+            <div id="rooms-list-container">
+                <h3>Dostępne Pokoje</h3>
+                <div id="rooms-list"></div>
+            </div>
+            <div id="create-room-container">
+                <h3>Stwórz Nowy Pokój</h3>
+                <form id="create-room-form">
+                    <input type="text" id="room-name-input" placeholder="Nazwa pokoju" required>
+                    <input type="password" id="room-password-input" placeholder="Hasło (opcjonalne)">
+                    <button type="submit">Stwórz</button>
+                </form>
+            </div>
+        </div>
         <button id="back-to-game-selection">Wróć do wyboru gry</button>
     </div>
 
-    <div id="room-container" style="display: none;">
+    <div id="room-container" class="container" style="display: none;">
         <h2 id="room-name-header"></h2>
         <div id="players-list"></div>
         <button id="start-game-button" style="display: none;">Start</button>
         <button id="leave-room-button">Opuść pokój</button>
     </div>
 
-    <div id="game-container" style="display: none;">
+    <div id="game-container" class="container" style="display: none;">
         <h2 id="game-word-header"></h2>
         <p id="game-info"></p>
         <div id="associations-list"></div>
@@ -61,7 +69,7 @@
         <button id="guess-word-button" style="display: none;">Zgadnij hasło</button>
     </div>
 
-    <div id="drawing-game-container" style="display: none;">
+    <div id="drawing-game-container" class="container" style="display: none;">
         <h2 id="drawing-game-word-header"></h2>
         <p id="drawing-game-info"></p>
         <canvas id="drawing-canvas" width="500" height="500"></canvas>
@@ -78,7 +86,7 @@
         <button id="drawing-guess-word-button" style="display: none;">Zgadnij hasło</button>
     </div>
 
-    <div id="game-over-container" style="display: none;">
+    <div id="game-over-container" class="container" style="display: none;">
         <h2 id="game-over-winner"></h2>
         <p id="game-over-reason"></p>
         <button id="back-to-lobby-button">Powrót do poczekalni</button>
