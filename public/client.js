@@ -1,4 +1,4 @@
-const socket = io();
+const socket = io(window.location.host);
 
 // Containers
 const loginContainer = document.getElementById('login-container');
