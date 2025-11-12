@@ -1,20 +1,16 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
+const { v4: uuidv4 } = require('uuid');
+const monopolyGame = require('./games/monopoly');
 
 const app = express();
 const server = http.createServer(app);
-
-// --- Konfiguracja CORS ---
 const io = new socketIo.Server(server, {
     cors: {
         origin: (origin, callback) => {
-            if (!origin) {
-                // Zezwalaj na połączenia bez 'origin'
-                return callback(null, true);
-            }
+            if (!origin) return callback(null, true);
             const hostname = new URL(origin).hostname;
-            // Zezwalaj na localhost i wszystkie subdomeny xsus.site
             if (hostname === "localhost" || hostname.endsWith(".xsus.site")) {
                 return callback(null, true);
             }
@@ -26,113 +22,64 @@ const io = new socketIo.Server(server, {
 
 const rooms = {};
 
-// --- Game Logic Handlers ---
-const wordImpostorGame = require('./games/wordImpostor');
-const drawingImpostorGame = require('./games/drawingImpostor');
-
-const gameHandlers = {
-    wordImpostor: wordImpostorGame,
-    drawingImpostor: drawingImpostorGame
-};
-// -------------------------
-
 app.use(express.static('public'));
+
+// Serve the game page for a specific room
+app.get('/room/:roomId', (req, res) => {
+    res.sendFile(__dirname + '/public/index.html');
+});
+
 
 io.on('connection', (socket) => {
     console.log('Nowy użytkownik dołączył');
-    socket.emit('update-rooms', rooms);
 
     socket.on('set-nickname', (nickname) => {
         socket.nickname = nickname;
-        console.log(`Użytkownik ustawił nick: ${nickname}`);
         socket.emit('nickname-set');
     });
 
-    socket.on('create-room', (roomName, password, gameType) => {
-        if (!rooms[roomName]) {
-            if (!gameHandlers[gameType]) {
-                socket.emit('error-message', 'Nieznany typ gry.');
-                return;
-            }
-            rooms[roomName] = {
-                players: {},
-                password: password,
-                host: socket.id,
-                gameType: gameType,
-                gameStarted: false,
-                gameState: {}
-            };
-            socket.join(roomName);
-            rooms[roomName].players[socket.id] = socket.nickname;
-            io.emit('update-rooms', rooms);
-            socket.emit('room-joined', roomName, rooms[roomName]);
-        } else {
-            socket.emit('error-message', 'Pokój o tej nazwie już istnieje.');
-        }
+    socket.on('create-room', () => {
+        const roomId = uuidv4();
+        rooms[roomId] = {
+            players: {},
+            host: socket.id,
+            gameStarted: false,
+            gameState: null
+        };
+        socket.emit('room-created', roomId);
     });
 
-    socket.on('join-room', (roomName, password) => {
-        const room = rooms[roomName];
-        if (room && room.password === password) {
-            socket.join(roomName);
+    socket.on('join-room', (roomId) => {
+        const room = rooms[roomId];
+        if (room && !room.gameStarted) {
+            socket.join(roomId);
             room.players[socket.id] = socket.nickname;
-            io.emit('update-rooms', rooms);
-            io.to(roomName).emit('update-players', room.players);
-            socket.emit('room-joined', roomName, room);
+            socket.emit('room-joined', roomId, room);
+            io.to(roomId).emit('update-players', room.players);
         } else {
-            socket.emit('error-message', 'Nieprawidłowe hasło lub pokój nie istnieje.');
+            socket.emit('error-message', 'Pokój nie istnieje lub gra już się rozpoczęła.');
         }
     });
 
-    socket.on('leave-room', (roomName) => {
-        handleLeaveRoom(socket, roomName);
-    });
-
-    // --- Game Event Delegation ---
-    socket.on('start-game', (roomName) => {
-        const room = rooms[roomName];
-        if (room && gameHandlers[room.gameType]) {
-            gameHandlers[room.gameType].startGame(io, socket, room, roomName);
+    socket.on('start-game', (roomId) => {
+        const room = rooms[roomId];
+        if (room && room.host === socket.id) {
+            monopolyGame.startGame(io, room, roomId);
         }
     });
 
     socket.on('game-action', (action, data) => {
-        const { roomName } = data;
-        const room = rooms[roomName];
-        if (room && gameHandlers[room.gameType]) {
-            gameHandlers[room.gameType].handleAction(io, socket, room, roomName, action, data);
+        const { roomId } = data;
+        const room = rooms[roomId];
+        if (room) {
+            monopolyGame.handleAction(io, socket, room, roomId, action, data);
         }
     });
-    // ---------------------------
 
     socket.on('disconnect', () => {
         console.log('Użytkownik opuścił grę');
-        for (const roomName in rooms) {
-            if (rooms[roomName].players[socket.id]) {
-                handleLeaveRoom(socket, roomName);
-            }
-        }
+        // Handle player leaving a room
     });
-
-    function handleLeaveRoom(socket, roomName) {
-        const room = rooms[roomName];
-        if (room) {
-            socket.leave(roomName);
-            delete room.players[socket.id];
-            if (Object.keys(room.players).length === 0) {
-                delete rooms[roomName];
-            } else {
-                if (room.host === socket.id) {
-                    room.host = Object.keys(room.players)[0];
-                }
-                if (room.gameStarted && gameHandlers[room.gameType]) {
-                     gameHandlers[room.gameType].handleDisconnect(io, room, roomName);
-                }
-            }
-            io.emit('update-rooms', rooms);
-            io.to(roomName).emit('update-players', room.players);
-        }
-    }
 });
 
 const PORT = process.env.PORT || 3000;
