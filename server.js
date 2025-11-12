@@ -24,6 +24,11 @@ const rooms = {};
 
 app.use(express.static('public'));
 
+// Serve the main page
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/public/index.html');
+});
+
 // Serve the game page for a specific room
 app.get('/room/:roomId', (req, res) => {
     res.sendFile(__dirname + '/public/index.html');

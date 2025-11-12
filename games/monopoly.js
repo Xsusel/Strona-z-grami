@@ -42,6 +42,18 @@ const boardLayout = [
     { name: "Aleja Mickiewicza", price: 400, color: "#0000ff", type: "property" }
 ];
 
+const chanceCards = [
+    { text: "Idź na Start (Pobierz $200)", action: "move", position: 0 },
+    { text: "Idź do Więzienia", action: "move", position: 10, jail: true },
+    { text: "Bank płaci Ci dywidendę w wysokości $50", action: "money", amount: 50 },
+    { text: "Wychodzisz z więzienia za darmo", action: "get-out-of-jail" }
+];
+
+const communityChestCards = [
+    { text: "Błąd banku na Twoją korzyść. Pobierz $200", action: "money", amount: 200 },
+    { text: "Płacisz opłatę za szkołę $50", action: "money", amount: -50 },
+    { text: "Idź do Więzienia", action: "move", position: 10, jail: true }
+];
 
 function createGameState(playerIds, nicknames) {
     const players = {};
@@ -60,6 +72,8 @@ function createGameState(playerIds, nicknames) {
     return {
         players,
         boardState: boardLayout.map(() => ({ owner: null, houses: 0 })),
+        chanceDeck: [...chanceCards].sort(() => Math.random() - 0.5),
+        communityChestDeck: [...communityChestCards].sort(() => Math.random() - 0.5),
         currentPlayerIndex: 0,
         dice: [0, 0],
         turnInProgress: false
@@ -80,25 +94,105 @@ function handleAction(io, socket, room, roomName, action, data) {
 
     const playerIds = Object.keys(gameState.players);
     const currentPlayerId = playerIds[gameState.currentPlayerIndex];
-    if (socket.id !== currentPlayerId) return; // Nie jest tura tego gracza
+    if (socket.id !== currentPlayerId && action !== 'buy-property') return;
 
     if (action === 'roll-dice') {
+        if (gameState.turnInProgress) return;
         gameState.turnInProgress = true;
         const die1 = Math.floor(Math.random() * 6) + 1;
         const die2 = Math.floor(Math.random() * 6) + 1;
         gameState.dice = [die1, die2];
 
         const currentPlayer = gameState.players[currentPlayerId];
+        const oldPosition = currentPlayer.position;
         currentPlayer.position = (currentPlayer.position + die1 + die2) % 40;
 
-        // Logika po wylądowaniu na polu
-        // ... do implementacji
+        // Sprawdzenie przejścia przez START
+        if (currentPlayer.position < oldPosition) {
+            currentPlayer.money += 200;
+        }
 
-        // Zmiana tury
-        gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % playerIds.length;
+        const currentTile = boardLayout[currentPlayer.position];
+        handleTileLanding(io, socket, room, roomName, currentTile, currentPlayerId);
+
+        // Zmiana tury (tymczasowo, będzie bardziej złożona)
+        if (die1 !== die2) {
+            gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % playerIds.length;
+        }
         gameState.turnInProgress = false;
 
         io.to(roomName).emit('game-state-update', gameState);
+    } else if (action === 'buy-property') {
+        const player = gameState.players[socket.id];
+        const tile = boardLayout[player.position];
+        const tileState = gameState.boardState[player.position];
+
+        if (tile.price && !tileState.owner && player.money >= tile.price) {
+            player.money -= tile.price;
+            tileState.owner = socket.id;
+            player.properties.push(player.position);
+            io.to(roomName).emit('game-state-update', gameState);
+        }
+    }
+}
+
+function handleTileLanding(io, socket, room, roomName, tile, playerId) {
+    const { gameState } = room;
+    const player = gameState.players[playerId];
+
+    switch (tile.type) {
+        case 'property':
+        case 'railroad':
+        case 'utility':
+            const tileState = gameState.boardState[player.position];
+            if (!tileState.owner) {
+                // Daj opcję zakupu
+                socket.emit('offer-purchase', { tileName: tile.name, price: tile.price });
+            } else if (tileState.owner !== playerId) {
+                // Pobierz czynsz
+                const ownerId = tileState.owner;
+                const owner = gameState.players[ownerId];
+                // Uproszczony czynsz, do rozbudowy
+                const rent = tile.price / 10;
+                player.money -= rent;
+                owner.money += rent;
+            }
+            break;
+        case 'tax':
+            player.money -= tile.amount;
+            break;
+        case 'corner':
+            if (tile.name === "Idziesz do Więzienia") {
+                player.position = 10;
+                player.inJail = true;
+            }
+            break;
+        case 'chance':
+            drawCard(gameState.chanceDeck, player, io, roomName);
+            break;
+        case 'community-chest':
+            drawCard(gameState.communityChestDeck, player, io, roomName);
+            break;
+    }
+}
+
+function drawCard(deck, player, io, roomName) {
+    const card = deck.shift();
+    deck.push(card); // Wraca na spód talii
+
+    io.to(roomName).emit('card-drawn', { cardText: card.text });
+
+    switch (card.action) {
+        case 'move':
+            player.position = card.position;
+            if (card.jail) player.inJail = true;
+            break;
+        case 'money':
+            player.money += card.amount;
+            break;
+        case 'get-out-of-jail':
+            player.getOutOfJailFreeCards++;
+            break;
     }
 }
 

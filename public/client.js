@@ -18,6 +18,7 @@ const playerPanel = document.getElementById('player-panel');
 // --- Stan gry ---
 let nickname = '';
 let roomId = '';
+let myPlayerId = '';
 
 function showContainer(containerId) {
     const containers = ['main-menu-container', 'invite-link-container', 'game-container'];
@@ -49,6 +50,7 @@ createGameButton.addEventListener('click', () => {
 
 socket.on('room-created', (newRoomId) => {
     roomId = newRoomId;
+    myPlayerId = socket.id;
     const inviteLink = `${window.location.origin}/room/${roomId}`;
     inviteLinkInput.value = inviteLink;
     showContainer('invite-link-container');
@@ -58,9 +60,9 @@ socket.on('room-created', (newRoomId) => {
 
 // Dołączanie do gry z linku
 const pathRoomId = window.location.pathname.split('/').pop();
-if (pathRoomId && pathRoomId.length > 1) { // Prosta walidacja czy to uuid
+if (pathRoomId && pathRoomId.length > 1) {
     roomId = pathRoomId;
-    mainMenuContainer.style.display = 'block'; // Pokaż menu, żeby podać nick
+    showContainer('main-menu-container');
 }
 
 socket.on('nickname-set', () => {
@@ -71,20 +73,21 @@ socket.on('nickname-set', () => {
 
 socket.on('room-joined', (joinedRoomId, room) => {
     if (window.location.pathname.includes(joinedRoomId)) {
+        myPlayerId = socket.id;
         showContainer('invite-link-container');
-        updatePlayersList(room.players);
+        updateLobbyPlayers(room.players);
     }
 });
 
 
 socket.on('update-players', (players) => {
-    updatePlayersList(players);
+    updateLobbyPlayers(players);
 });
 
 
-function updatePlayersList(players) {
-    // Tutaj będzie logika aktualizacji listy graczy w panelu
-    console.log("Gracze w pokoju:", players);
+function updateLobbyPlayers(players) {
+    // Prosta implementacja, do rozbudowy w panelu gry
+    console.log("Gracze w lobby:", players);
 }
 
 
@@ -96,8 +99,57 @@ startGameButton.addEventListener('click', () => {
 // --- Logika gry ---
 socket.on('game-started', (gameState) => {
     showContainer('game-container');
-    renderBoard(gameState.boardState);
+    renderBoard();
+    updatePlayerPanel(gameState);
 });
+
+socket.on('game-state-update', (gameState) => {
+    updatePlayerPanel(gameState);
+    // Tutaj logika aktualizacji pionków na planszy
+});
+
+socket.on('offer-purchase', (data) => {
+    const buy = confirm(`Czy chcesz kupić ${data.tileName} za $${data.price}?`);
+    if (buy) {
+        socket.emit('game-action', 'buy-property', { roomId });
+    }
+});
+
+socket.on('card-drawn', (data) => {
+    alert(`Wylosowano kartę:\n\n${data.cardText}`);
+});
+
+
+function updatePlayerPanel(gameState) {
+    playerPanel.innerHTML = '<h3>Gracze</h3>';
+    const playerIds = Object.keys(gameState.players);
+    const currentPlayerId = playerIds[gameState.currentPlayerIndex];
+
+    playerIds.forEach(id => {
+        const player = gameState.players[id];
+        const playerDiv = document.createElement('div');
+        playerDiv.innerHTML = `
+            <strong>${player.nickname}</strong>: $${player.money}
+            <small>(Poz: ${player.position})</small>
+        `;
+        if (id === currentPlayerId) {
+            playerDiv.style.fontWeight = 'bold';
+            playerDiv.style.color = 'green';
+        }
+        playerPanel.appendChild(playerDiv);
+    });
+
+    // Dodanie przycisku do rzutu kostką
+    if (myPlayerId === currentPlayerId) {
+        const rollButton = document.createElement('button');
+        rollButton.textContent = 'Rzuć kostką';
+        rollButton.onclick = () => {
+            socket.emit('game-action', 'roll-dice', { roomId });
+        };
+        playerPanel.appendChild(rollButton);
+    }
+}
+
 
 const boardLayout = [
     { name: "Start", type: "corner" },
@@ -149,16 +201,16 @@ function renderBoard() {
         tile.classList.add('tile');
 
         let row, col;
-        if (i < 10) { // Dolny rząd
+        if (i < 10) {
             row = 11; col = 11 - i;
             tile.classList.add('bottom-row');
-        } else if (i < 20) { // Lewy rząd
+        } else if (i < 20) {
             row = 11 - (i - 10); col = 1;
             tile.classList.add('left-row');
-        } else if (i < 30) { // Górny rząd
+        } else if (i < 30) {
             row = 1; col = 1 + (i - 20);
             tile.classList.add('top-row');
-        } else { // Prawy rząd
+        } else {
             row = 1 + (i - 30); col = 11;
             tile.classList.add('right-row');
         }
@@ -168,7 +220,7 @@ function renderBoard() {
 
         if (tileData.type === 'property') {
             tile.innerHTML = `
-                <div class="color-bar" style="background-color: ${tileData.color};"></div>
+                <div class.color-bar" style="background-color: ${tileData.color};"></div>
                 <div class="name">${tileData.name}</div>
                 <div class="price">$${tileData.price}</div>
             `;
