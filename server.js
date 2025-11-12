@@ -79,6 +79,10 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('send-chat-message', (roomId, message) => {
+        socket.to(roomId).emit('chat-message', { message, nickname: socket.nickname });
+    });
+
     socket.on('disconnect', () => {
         console.log('Użytkownik opuścił grę');
         // Handle player leaving a room

@@ -78,8 +78,13 @@ function createGameState(playerIds, nicknames) {
         currentPlayerIndex: 0,
         dice: [0, 0],
         turnInProgress: false,
-        auction: null
+        auction: null,
+        log: []
     };
+}
+
+function logEvent(gameState, message) {
+    gameState.log.push(message);
 }
 
 function startGame(io, room, roomName) {
@@ -104,8 +109,9 @@ function handleAction(io, socket, room, roomName, action, data) {
         const die1 = Math.floor(Math.random() * 6) + 1;
         const die2 = Math.floor(Math.random() * 6) + 1;
         gameState.dice = [die1, die2];
-
         const currentPlayer = gameState.players[currentPlayerId];
+        logEvent(gameState, `${currentPlayer.nickname} wyrzucił ${die1} i ${die2}`);
+
         const oldPosition = currentPlayer.position;
         currentPlayer.position = (currentPlayer.position + die1 + die2) % 40;
 
@@ -165,6 +171,7 @@ function handleAction(io, socket, room, roomName, action, data) {
             player.money -= tile.price;
             tileState.owner = socket.id;
             player.properties.push(player.position);
+            logEvent(gameState, `${player.nickname} kupił ${tile.name}`);
             io.to(roomName).emit('game-state-update', gameState);
         }
     } else if (action === 'build-house') {
@@ -280,7 +287,9 @@ function handleTileLanding(io, socket, room, roomName, tile, playerId) {
                 const rent = calculateRent(tile, tileState, owner, gameState);
                 player.money -= rent;
                 owner.money += rent;
-                io.to(roomName).emit('notification', { text: `${player.nickname} zapłacił $${rent} czynszu dla ${owner.nickname}` });
+                const message = `${player.nickname} zapłacił $${rent} czynszu dla ${owner.nickname}`;
+                logEvent(gameState, message);
+                io.to(roomName).emit('notification', { text: message });
             }
             break;
         case 'tax':
@@ -293,18 +302,19 @@ function handleTileLanding(io, socket, room, roomName, tile, playerId) {
             }
             break;
         case 'chance':
-            drawCard(gameState.chanceDeck, player, io, roomName);
+            drawCard(gameState.chanceDeck, player, io, room, roomName);
             break;
         case 'community-chest':
-            drawCard(gameState.communityChestDeck, player, io, roomName);
+            drawCard(gameState.communityChestDeck, player, io, room, roomName);
             break;
     }
 }
 
-function drawCard(deck, player, io, roomName) {
+function drawCard(deck, player, io, room, roomName) {
     const card = deck.shift();
     deck.push(card); // Wraca na spód talii
 
+    logEvent(room.gameState, `${player.nickname} wylosował kartę: ${card.text}`);
     io.to(roomName).emit('card-drawn', { cardText: card.text });
 
     switch (card.action) {

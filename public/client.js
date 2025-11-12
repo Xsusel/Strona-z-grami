@@ -123,13 +123,47 @@ socket.on('game-state-update', (newGameState) => {
 
     updatePlayerPanel();
     renderBoard();
+    updateGameLog();
 });
+
+function updateGameLog() {
+    const gameLog = document.getElementById('game-log');
+    gameLog.innerHTML = '';
+    gameState.log.forEach(message => {
+        const logEntry = document.createElement('div');
+        logEntry.textContent = message;
+        gameLog.appendChild(logEntry);
+    });
+    gameLog.scrollTop = gameLog.scrollHeight;
+}
 
 // In the 'roll-dice' button onclick handler:
 // playSound(sounds.diceRoll);
 
 // In the 'buy-property' callback:
 // playSound(sounds.buyProperty);
+
+const chatInput = document.getElementById('chat-input');
+const chatMessages = document.getElementById('chat-messages');
+
+chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && chatInput.value) {
+        socket.emit('send-chat-message', roomId, chatInput.value);
+        addChatMessage({ message: chatInput.value, nickname: 'Ty' });
+        chatInput.value = '';
+    }
+});
+
+socket.on('chat-message', (data) => {
+    addChatMessage(data);
+});
+
+function addChatMessage(data) {
+    const messageElement = document.createElement('div');
+    messageElement.textContent = `${data.nickname}: ${data.message}`;
+    chatMessages.appendChild(messageElement);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
 
 socket.on('offer-purchase', (data) => {
     showModal('Oferta zakupu', `Czy chcesz kupić ${data.tileName} za $${data.price}?`, [
@@ -248,6 +282,12 @@ function updatePlayerPanel() {
             const groupDiv = document.createElement('div');
             groupDiv.classList.add('property-group');
             groupDiv.style.borderColor = color;
+
+            const groupHeader = document.createElement('div');
+            groupHeader.classList.add('property-group-header');
+            groupHeader.style.backgroundColor = color;
+            groupHeader.textContent = color;
+            groupDiv.appendChild(groupHeader);
 
             groupedProperties[color].forEach(propIndex => {
                 const prop = boardLayout[propIndex];
@@ -496,7 +536,7 @@ function createTileHTML(tileData) {
     let tileHTML = '';
     if (tileData.type === 'property') {
         tileHTML = `
-            <div class="space property">
+            <div class="space property" data-position="${boardLayout.indexOf(tileData)}">
                 <div class="container">
                     <div class="color-bar" style="background-color: ${tileData.color};"></div>
                     <div class="name">${tileData.name}</div>
@@ -506,7 +546,7 @@ function createTileHTML(tileData) {
         `;
     } else if (tileData.type === 'railroad') {
         tileHTML = `
-            <div class="space railroad">
+            <div class="space railroad" data-position="${boardLayout.indexOf(tileData)}">
                 <div class="container">
                     <div class="name">${tileData.name}</div>
                     <i class="drawing fa fa-subway"></i>
@@ -516,7 +556,7 @@ function createTileHTML(tileData) {
         `;
     } else if (tileData.type === 'utility') {
         tileHTML = `
-            <div class="space utility">
+            <div class="space utility" data-position="${boardLayout.indexOf(tileData)}">
                 <div class="container">
                     <div class="name">${tileData.name}</div>
                     <i class="drawing fa fa-lightbulb-o"></i>
@@ -526,7 +566,7 @@ function createTileHTML(tileData) {
         `;
     } else if (tileData.type === 'community-chest') {
         tileHTML = `
-            <div class="space community-chest">
+            <div class="space community-chest" data-position="${boardLayout.indexOf(tileData)}">
                 <div class="container">
                     <div class="name">Community Chest</div>
                     <i class="drawing fa fa-cube"></i>
@@ -536,7 +576,7 @@ function createTileHTML(tileData) {
         `;
     } else if (tileData.type === 'chance') {
         tileHTML = `
-            <div class="space chance">
+            <div class="space chance" data-position="${boardLayout.indexOf(tileData)}">
                 <div class="container">
                     <div class="name">Chance</div>
                     <i class="drawing fa fa-question"></i>
@@ -545,7 +585,7 @@ function createTileHTML(tileData) {
         `;
     } else if (tileData.type === 'tax') {
         tileHTML = `
-            <div class="space fee income-tax">
+            <div class="space fee income-tax" data-position="${boardLayout.indexOf(tileData)}">
                 <div class="container">
                     <div class="name">${tileData.name}</div>
                     <div class="diamond"></div>
@@ -556,7 +596,7 @@ function createTileHTML(tileData) {
     } else {
         // For corners and other types
         tileHTML = `
-            <div class="space">
+            <div class="space" data-position="${boardLayout.indexOf(tileData)}">
                 <div class="container">
                     <div class="name">${tileData.name}</div>
                 </div>
@@ -608,13 +648,20 @@ function renderBoard() {
     const playerIds = Object.keys(gameState.players);
     playerIds.forEach((playerId, index) => {
         const player = gameState.players[playerId];
-        const pawn = document.createElement('div');
-        pawn.classList.add('player-pawn');
-        pawn.style.backgroundColor = playerColors[index];
+        let pawn = document.getElementById(`pawn-${playerId}`);
+        if (!pawn) {
+            pawn = document.createElement('div');
+            pawn.id = `pawn-${playerId}`;
+            pawn.classList.add('player-pawn');
+            pawn.style.backgroundColor = playerColors[index];
+            monopolyBoard.appendChild(pawn);
+        }
 
-        const tileElement = document.querySelector(`.space:nth-child(${player.position + 1})`);
+        const tileElement = document.querySelector(`.space[data-position="${player.position}"]`);
         if (tileElement) {
-            tileElement.appendChild(pawn);
+            const rect = tileElement.getBoundingClientRect();
+            pawn.style.top = `${rect.top}px`;
+            pawn.style.left = `${rect.left}px`;
         }
     });
 }
