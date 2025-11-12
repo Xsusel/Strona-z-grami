@@ -1,45 +1,45 @@
 
 const boardLayout = [
     { name: "Start", type: "corner" },
-    { name: "Kondek", price: 60, color: "#a52a2a", type: "property" },
+    { name: "Kondek", price: 60, color: "#a52a2a", type: "property", housePrice: 50, rent: [2, 10, 30, 90, 160, 250] },
     { name: "Kasa Społeczna", type: "community-chest" },
-    { name: "Wiejska", price: 60, color: "#a52a2a", type: "property" },
+    { name: "Wiejska", price: 60, color: "#a52a2a", type: "property", housePrice: 50, rent: [4, 20, 60, 180, 320, 450] },
     { name: "Podatek Dochodowy", type: "tax", amount: 200 },
     { name: "Kolej Południowa", price: 200, type: "railroad" },
-    { name: "Szewska", price: 100, color: "#87ceeb", type: "property" },
+    { name: "Szewska", price: 100, color: "#87ceeb", type: "property", housePrice: 50, rent: [6, 30, 90, 270, 400, 550] },
     { name: "Szansa", type: "chance" },
-    { name: "Dluga", price: 100, color: "#87ceeb", type: "property" },
-    { name: "Slawkowska", price: 120, color: "#87ceeb", type: "property" },
+    { name: "Dluga", price: 100, color: "#87ceeb", type: "property", housePrice: 50, rent: [6, 30, 90, 270, 400, 550] },
+    { name: "Slawkowska", price: 120, color: "#87ceeb", type: "property", housePrice: 50, rent: [8, 40, 100, 300, 450, 600] },
     { name: "Więzienie", type: "corner" },
-    { name: "Miodowa", price: 140, color: "#da70d6", type: "property" },
+    { name: "Miodowa", price: 140, color: "#da70d6", type: "property", housePrice: 100, rent: [10, 50, 150, 450, 625, 750] },
     { name: "Elektrownia", price: 150, type: "utility" },
-    { name: "Stradom", price: 140, color: "#da70d6", type: "property" },
-    { name: "Podwale", price: 160, color: "#da70d6", type: "property" },
+    { name: "Stradom", price: 140, color: "#da70d6", type: "property", housePrice: 100, rent: [10, 50, 150, 450, 625, 750] },
+    { name: "Podwale", price: 160, color: "#da70d6", type: "property", housePrice: 100, rent: [12, 60, 180, 500, 700, 900] },
     { name: "Kolej Zachodnia", price: 200, type: "railroad" },
-    { name: "Rynek Główny", price: 180, color: "#ffa500", type: "property" },
+    { name: "Rynek Główny", price: 180, color: "#ffa500", type: "property", housePrice: 100, rent: [14, 70, 200, 550, 750, 950] },
     { name: "Kasa Społeczna", type: "community-chest" },
-    { name: "Plac Wszystkich Swietych", price: 180, color: "#ffa500", type: "property" },
-    { name: "Bulwary", price: 200, color: "#ffa500", type: "property" },
+    { name: "Plac Wszystkich Swietych", price: 180, color: "#ffa500", type: "property", housePrice: 100, rent: [14, 70, 200, 550, 750, 950] },
+    { name: "Bulwary", price: 200, color: "#ffa500", type: "property", housePrice: 100, rent: [16, 80, 220, 600, 800, 1000] },
     { name: "Bezpłatny Parking", type: "corner" },
-    { name: "Karmelicka", price: 220, color: "#ff0000", type: "property" },
+    { name: "Karmelicka", price: 220, color: "#ff0000", type: "property", housePrice: 150, rent: [18, 90, 250, 700, 875, 1050] },
     { name: "Szansa", type: "chance" },
-    { name: "Aleje Trzech Wieszczów", price: 220, color: "#ff0000", type: "property" },
-    { name: "Plac Sikorskiego", price: 240, color: "#ff0000", type: "property" },
+    { name: "Aleje Trzech Wieszczów", price: 220, color: "#ff0000", type: "property", housePrice: 150, rent: [18, 90, 250, 700, 875, 1050] },
+    { name: "Plac Sikorskiego", price: 240, color: "#ff0000", type: "property", housePrice: 150, rent: [20, 100, 300, 750, 925, 1100] },
     { name: "Kolej Północna", price: 200, type: "railroad" },
-    { name: "Ulica 1 Maja", price: 260, color: "#ffff00", type: "property" },
+    { name: "Ulica 1 Maja", price: 260, color: "#ffff00", type: "property", housePrice: 150, rent: [22, 110, 330, 800, 975, 1150] },
     { name: "Wodociągi", price: 150, type: "utility" },
-    { name: "Ulica 3 Maja", price: 260, color: "#ffff00", type: "property" },
-    { name: "Ulica Piłsudskiego", price: 280, color: "#ffff00", type: "property" },
+    { name: "Ulica 3 Maja", price: 260, color: "#ffff00", type: "property", housePrice: 150, rent: [22, 110, 330, 800, 975, 1150] },
+    { name: "Ulica Piłsudskiego", price: 280, color: "#ffff00", type: "property", housePrice: 150, rent: [24, 120, 360, 850, 1025, 1200] },
     { name: "Idziesz do Więzienia", type: "corner" },
-    { name: "Aleja Waszyngtona", price: 300, color: "#008000", type: "property" },
-    { name: "Plac Inwalidów", price: 300, color: "#008000", type: "property" },
+    { name: "Aleja Waszyngtona", price: 300, color: "#008000", type: "property", housePrice: 200, rent: [26, 130, 390, 900, 1100, 1275] },
+    { name: "Plac Inwalidów", price: 300, color: "#008000", type: "property", housePrice: 200, rent: [26, 130, 390, 900, 1100, 1275] },
     { name: "Kasa Społeczna", type: "community-chest" },
-    { name: "Ulica Focha", price: 320, color: "#008000", type: "property" },
+    { name: "Ulica Focha", price: 320, color: "#008000", type: "property", housePrice: 200, rent: [28, 150, 450, 1000, 1200, 1400] },
     { name: "Kolej Wschodnia", price: 200, type: "railroad" },
     { name: "Szansa", type: "chance" },
-    { name: "Ulica Reymonta", price: 350, color: "#0000ff", type: "property" },
+    { name: "Ulica Reymonta", price: 350, color: "#0000ff", type: "property", housePrice: 200, rent: [35, 175, 500, 1100, 1300, 1500] },
     { name: "Podatek od Luksusu", type: "tax", amount: 100 },
-    { name: "Aleja Mickiewicza", price: 400, color: "#0000ff", type: "property" }
+    { name: "Aleja Mickiewicza", price: 400, color: "#0000ff", type: "property", housePrice: 200, rent: [50, 200, 600, 1400, 1700, 2000] }
 ];
 
 const chanceCards = [
@@ -172,15 +172,72 @@ function handleAction(io, socket, room, roomName, action, data) {
         const player = gameState.players[socket.id];
         const tile = boardLayout[tilePosition];
         const tileState = gameState.boardState[tilePosition];
-        const housePrice = 50; // Uproszczona cena
+        const housePrice = tile.housePrice;
 
-        const hasMonopoly = boardLayout
-            .filter(t => t.color === tile.color)
-            .every(t => gameState.boardState[boardLayout.indexOf(t)].owner === socket.id);
+        const colorGroup = boardLayout.filter(t => t.color === tile.color);
+        const hasMonopoly = colorGroup.every(t => gameState.boardState[boardLayout.indexOf(t)].owner === socket.id);
 
-        if (hasMonopoly && player.money >= housePrice && tileState.houses < 5) {
+        const housesInGroup = colorGroup.map(t => gameState.boardState[boardLayout.indexOf(t)].houses);
+        const minHouses = Math.min(...housesInGroup);
+
+        const canBuild = tileState.houses === minHouses;
+
+        if (hasMonopoly && player.money >= housePrice && tileState.houses < 5 && canBuild) {
             player.money -= housePrice;
             tileState.houses++;
+            io.to(roomName).emit('game-state-update', gameState);
+        }
+    } else if (action === 'propose-trade') {
+        const { targetId, offer } = data;
+        io.to(targetId).emit('trade-offer', { fromId: socket.id, fromNickname: gameState.players[socket.id].nickname, offer });
+    } else if (action === 'accept-trade') {
+        const { fromId, offer } = data;
+        const player1 = gameState.players[socket.id];
+        const player2 = gameState.players[fromId];
+
+        // Transfer money
+        player1.money += offer.moneyFrom2;
+        player2.money -= offer.moneyFrom2;
+        player2.money += offer.moneyFrom1;
+        player1.money -= offer.moneyFrom1;
+
+        // Transfer properties
+        offer.propertiesFrom1.forEach(propIndex => {
+            player1.properties = player1.properties.filter(p => p !== propIndex);
+            player2.properties.push(propIndex);
+            gameState.boardState[propIndex].owner = fromId;
+        });
+        offer.propertiesFrom2.forEach(propIndex => {
+            player2.properties = player2.properties.filter(p => p !== propIndex);
+            player1.properties.push(propIndex);
+            gameState.boardState[propIndex].owner = socket.id;
+        });
+
+        io.to(roomName).emit('game-state-update', gameState);
+    } else if (action === 'decline-trade') {
+        const { fromId } = data;
+        io.to(fromId).emit('notification', { text: 'Trade offer declined.' });
+    } else if (action === 'mortgage-property') {
+        const { tilePosition } = data;
+        const player = gameState.players[socket.id];
+        const tile = boardLayout[tilePosition];
+        const tileState = gameState.boardState[tilePosition];
+
+        if (tileState.owner === socket.id && !tileState.mortgaged) {
+            tileState.mortgaged = true;
+            player.money += tile.price / 2;
+            io.to(roomName).emit('game-state-update', gameState);
+        }
+    } else if (action === 'unmortgage-property') {
+        const { tilePosition } = data;
+        const player = gameState.players[socket.id];
+        const tile = boardLayout[tilePosition];
+        const tileState = gameState.boardState[tilePosition];
+        const unmortgageCost = (tile.price / 2) * 1.1;
+
+        if (tileState.owner === socket.id && tileState.mortgaged && player.money >= unmortgageCost) {
+            tileState.mortgaged = false;
+            player.money -= unmortgageCost;
             io.to(roomName).emit('game-state-update', gameState);
         }
     } else if (action === 'decline-purchase') {
@@ -266,14 +323,16 @@ function drawCard(deck, player, io, roomName) {
 
 function calculateRent(tile, tileState, owner, gameState) {
     if (tile.type === 'property') {
-        const monopoly = boardLayout
-            .filter(t => t.color === tile.color)
-            .every(t => gameState.boardState[boardLayout.indexOf(t)].owner === tileState.owner);
-
-        // Na razie uproszczony czynsz, bez domów
-        return tile.price / 10 * (monopoly ? 2 : 1);
+        const rentIndex = tileState.houses;
+        return tile.rent[rentIndex];
+    } else if (tile.type === 'railroad') {
+        const railroadCount = owner.properties.filter(p => boardLayout[p].type === 'railroad').length;
+        return 25 * Math.pow(2, railroadCount - 1);
+    } else if (tile.type === 'utility') {
+        const utilityCount = owner.properties.filter(p => boardLayout[p].type === 'utility').length;
+        const diceRoll = gameState.dice[0] + gameState.dice[1];
+        return utilityCount === 1 ? diceRoll * 4 : diceRoll * 10;
     }
-    // ... logika dla kolei i utility
     return 0;
 }
 

@@ -111,14 +111,32 @@ socket.on('game-started', (newGameState) => {
 });
 
 socket.on('game-state-update', (newGameState) => {
+    const oldGameState = gameState;
     gameState = newGameState;
+
+    // Check for pass Go
+    const myPlayer = gameState.players[myPlayerId];
+    const oldPlayer = oldGameState ? oldGameState.players[myPlayerId] : null;
+    if (oldPlayer && myPlayer.position < oldPlayer.position) {
+        playSound(sounds.passGo);
+    }
+
     updatePlayerPanel();
     renderBoard();
 });
 
+// In the 'roll-dice' button onclick handler:
+// playSound(sounds.diceRoll);
+
+// In the 'buy-property' callback:
+// playSound(sounds.buyProperty);
+
 socket.on('offer-purchase', (data) => {
     showModal('Oferta zakupu', `Czy chcesz kupić ${data.tileName} za $${data.price}?`, [
-        { text: 'Kup', callback: () => socket.emit('game-action', 'buy-property', { roomId }) },
+        { text: 'Kup', callback: () => {
+            playSound(sounds.buyProperty);
+            socket.emit('game-action', 'buy-property', { roomId });
+        } },
         { text: 'Ignoruj', callback: () => {} }
     ]);
 });
@@ -128,9 +146,17 @@ socket.on('card-drawn', (data) => {
 });
 
 socket.on('notification', (data) => {
-    // Prosty alert, do rozbudowy na ładniejszy system notyfikacji
-    alert(data.text);
+    showNotification(data.text);
 });
+
+function showNotification(text) {
+    const notificationBar = document.getElementById('notification-bar');
+    notificationBar.textContent = text;
+    notificationBar.classList.add('show');
+    setTimeout(() => {
+        notificationBar.classList.remove('show');
+    }, 3000);
+}
 
 socket.on('auction-started', (data) => {
     showAuctionModal(data.tileName);
@@ -183,41 +209,243 @@ function updatePlayerPanel() {
     const playerIds = Object.keys(gameState.players);
     const currentPlayerId = playerIds[gameState.currentPlayerIndex];
 
+    const playersContainer = document.createElement('div');
+    playersContainer.classList.add('players-container');
+
     playerIds.forEach((id, index) => {
         const player = gameState.players[id];
         const playerDiv = document.createElement('div');
-        playerDiv.style.borderLeft = `5px solid ${playerColors[index]}`;
-        playerDiv.style.paddingLeft = '10px';
-        playerDiv.innerHTML = `
-            <strong>${player.nickname}</strong>: $${player.money}
-            <small>(Poz: ${player.position})</small>
-        `;
+        playerDiv.classList.add('player-info');
+        if (id === currentPlayerId) {
+            playerDiv.classList.add('active-player');
+        }
+
+        playerDiv.style.borderColor = playerColors[index];
+
+        const playerName = document.createElement('div');
+        playerName.classList.add('player-name');
+        playerName.textContent = player.nickname;
+        playerDiv.appendChild(playerName);
+
+        const playerMoney = document.createElement('div');
+        playerMoney.classList.add('player-money');
+        playerMoney.textContent = `$${player.money}`;
+        playerDiv.appendChild(playerMoney);
 
         const propertiesDiv = document.createElement('div');
         propertiesDiv.classList.add('properties-list');
+
+        const groupedProperties = {};
         player.properties.forEach(propIndex => {
             const prop = boardLayout[propIndex];
-            const propEl = document.createElement('div');
-            propEl.textContent = prop.name;
-            propEl.style.color = prop.color;
-            propertiesDiv.appendChild(propEl);
+            if (!groupedProperties[prop.color]) {
+                groupedProperties[prop.color] = [];
+            }
+            groupedProperties[prop.color].push(propIndex);
         });
-        playerDiv.appendChild(propertiesDiv);
 
-        if (id === currentPlayerId) {
-            playerDiv.style.fontWeight = 'bold';
+        for (const color in groupedProperties) {
+            const groupDiv = document.createElement('div');
+            groupDiv.classList.add('property-group');
+            groupDiv.style.borderColor = color;
+
+            groupedProperties[color].forEach(propIndex => {
+                const prop = boardLayout[propIndex];
+                const propState = gameState.boardState[propIndex];
+                const propEl = document.createElement('div');
+                propEl.classList.add('property-item');
+
+                let houseText = '';
+                if (propState.houses > 0) {
+                    houseText = ` (${propState.houses} 🏠)`;
+                }
+                if (propState.houses === 5) {
+                    houseText = ' (🏨)';
+                }
+
+                propEl.textContent = prop.name + houseText;
+
+                if (id === myPlayerId) {
+                    if (propState.mortgaged) {
+                        const unmortgageButton = document.createElement('button');
+                        unmortgageButton.textContent = 'Odkup';
+                        unmortgageButton.onclick = () => {
+                            socket.emit('game-action', 'unmortgage-property', { roomId, tilePosition: propIndex });
+                        };
+                        propEl.appendChild(unmortgageButton);
+                    } else {
+                        const mortgageButton = document.createElement('button');
+                        mortgageButton.textContent = 'Zastaw';
+                        mortgageButton.onclick = () => {
+                            socket.emit('game-action', 'mortgage-property', { roomId, tilePosition: propIndex });
+                        };
+                        propEl.appendChild(mortgageButton);
+                    }
+
+                    const colorGroup = boardLayout.filter(t => t.color === prop.color);
+                    const hasMonopoly = colorGroup.every(t => {
+                        const tIndex = boardLayout.indexOf(t);
+                        return gameState.boardState[tIndex].owner === id;
+                    });
+
+                    if (hasMonopoly) {
+                        const buyHouseButton = document.createElement('button');
+                        buyHouseButton.textContent = 'Kup dom';
+                        buyHouseButton.onclick = () => {
+                            socket.emit('game-action', 'build-house', { roomId, tilePosition: propIndex });
+                        };
+                        propEl.appendChild(buyHouseButton);
+                    }
+                }
+
+                groupDiv.appendChild(propEl);
+            });
+            propertiesDiv.appendChild(groupDiv);
         }
-        playerPanel.appendChild(playerDiv);
+
+        playerDiv.appendChild(propertiesDiv);
+        playersContainer.appendChild(playerDiv);
     });
+
+    playerPanel.appendChild(playersContainer);
+
+    const actionButtons = document.createElement('div');
+    actionButtons.classList.add('action-buttons');
 
     if (myPlayerId === currentPlayerId) {
         const rollButton = document.createElement('button');
         rollButton.textContent = 'Rzuć kostką';
         rollButton.onclick = () => {
+            playSound(sounds.diceRoll);
             socket.emit('game-action', 'roll-dice', { roomId });
         };
-        playerPanel.appendChild(rollButton);
+        actionButtons.appendChild(rollButton);
     }
+
+    const tradeButton = document.createElement('button');
+    tradeButton.textContent = 'Zaproponuj wymianę';
+    tradeButton.onclick = showTradeModal;
+    actionButtons.appendChild(tradeButton);
+
+    playerPanel.appendChild(actionButtons);
+}
+
+socket.on('trade-offer', (data) => {
+    const { fromNickname, offer } = data;
+    const offerText = `
+        ${fromNickname} proponuje wymianę:
+        Ty dajesz: ${offer.propertiesFrom2.map(p => boardLayout[p].name).join(', ')} i $${offer.moneyFrom2}
+        Otrzymujesz: ${offer.propertiesFrom1.map(p => boardLayout[p].name).join(', ')} i $${offer.moneyFrom1}
+    `;
+    showModal('Oferta wymiany', offerText, [
+        { text: 'Akceptuj', callback: () => socket.emit('game-action', 'accept-trade', { roomId, fromId: data.fromId, offer }) },
+        { text: 'Odrzuć', callback: () => socket.emit('game-action', 'decline-trade', { roomId, fromId: data.fromId }) }
+    ]);
+});
+
+function showTradeModal() {
+    const tradeModalContent = document.createElement('div');
+
+    const playerSelectLabel = document.createElement('label');
+    playerSelectLabel.textContent = 'Wymień się z:';
+    tradeModalContent.appendChild(playerSelectLabel);
+
+    const playerSelect = document.createElement('select');
+    const otherPlayers = Object.keys(gameState.players).filter(id => id !== myPlayerId);
+    otherPlayers.forEach(id => {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = gameState.players[id].nickname;
+        playerSelect.appendChild(option);
+    });
+    tradeModalContent.appendChild(playerSelect);
+
+    tradeModalContent.appendChild(document.createElement('hr'));
+
+    const myPropertiesLabel = document.createElement('h4');
+    myPropertiesLabel.textContent = 'Twoje posiadłości:';
+    tradeModalContent.appendChild(myPropertiesLabel);
+
+    const myPlayer = gameState.players[myPlayerId];
+    myPlayer.properties.forEach(propIndex => {
+        const prop = boardLayout[propIndex];
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = propIndex;
+        checkbox.id = `my-prop-${propIndex}`;
+        const label = document.createElement('label');
+        label.textContent = prop.name;
+        label.htmlFor = `my-prop-${propIndex}`;
+        tradeModalContent.appendChild(checkbox);
+        tradeModalContent.appendChild(label);
+        tradeModalContent.appendChild(document.createElement('br'));
+    });
+
+    const myMoneyLabel = document.createElement('label');
+    myMoneyLabel.textContent = 'Twoje pieniądze:';
+    tradeModalContent.appendChild(myMoneyLabel);
+    const myMoneyInput = document.createElement('input');
+    myMoneyInput.type = 'number';
+    myMoneyInput.value = 0;
+    tradeModalContent.appendChild(myMoneyInput);
+
+
+    tradeModalContent.appendChild(document.createElement('hr'));
+
+    const theirPropertiesLabel = document.createElement('h4');
+    theirPropertiesLabel.textContent = 'Ich posiadłości:';
+    tradeModalContent.appendChild(theirPropertiesLabel);
+
+    const theirPlayerId = playerSelect.value;
+    const theirPlayer = gameState.players[theirPlayerId];
+    theirPlayer.properties.forEach(propIndex => {
+        const prop = boardLayout[propIndex];
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = propIndex;
+        checkbox.id = `their-prop-${propIndex}`;
+        const label = document.createElement('label');
+        label.textContent = prop.name;
+        label.htmlFor = `their-prop-${propIndex}`;
+        tradeModalContent.appendChild(checkbox);
+        tradeModalContent.appendChild(label);
+        tradeModalContent.appendChild(document.createElement('br'));
+    });
+
+    const theirMoneyLabel = document.createElement('label');
+    theirMoneyLabel.textContent = 'Ich pieniądze:';
+    tradeModalContent.appendChild(theirMoneyLabel);
+    const theirMoneyInput = document.createElement('input');
+    theirMoneyInput.type = 'number';
+    theirMoneyInput.value = 0;
+    tradeModalContent.appendChild(theirMoneyInput);
+
+
+    const proposeButton = document.createElement('button');
+    proposeButton.textContent = 'Zaproponuj';
+    proposeButton.onclick = () => {
+        const offer = {
+            propertiesFrom1: Array.from(tradeModalContent.querySelectorAll('input[id^="my-prop-"]:checked')).map(cb => parseInt(cb.value)),
+            moneyFrom1: parseInt(myMoneyInput.value),
+            propertiesFrom2: Array.from(tradeModalContent.querySelectorAll('input[id^="their-prop-"]:checked')).map(cb => parseInt(cb.value)),
+            moneyFrom2: parseInt(theirMoneyInput.value),
+        };
+        socket.emit('game-action', 'propose-trade', { roomId, targetId: playerSelect.value, offer });
+        hideModal();
+    };
+
+    modalTitle.textContent = 'Propozycja wymiany';
+    modalText.innerHTML = '';
+    modalText.appendChild(tradeModalContent);
+    modalButtons.innerHTML = '';
+    modalButtons.appendChild(proposeButton);
+
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'Anuluj';
+    closeButton.onclick = hideModal;
+    modalButtons.appendChild(closeButton);
+
+    modal.style.display = 'flex';
 }
 
 
@@ -264,53 +492,129 @@ const boardLayout = [
     { name: "Aleja Mickiewicza", price: 400, color: "#0000ff", type: "property" }
 ];
 
+function createTileHTML(tileData) {
+    let tileHTML = '';
+    if (tileData.type === 'property') {
+        tileHTML = `
+            <div class="space property">
+                <div class="container">
+                    <div class="color-bar" style="background-color: ${tileData.color};"></div>
+                    <div class="name">${tileData.name}</div>
+                    <div class="price">Price $${tileData.price}</div>
+                </div>
+            </div>
+        `;
+    } else if (tileData.type === 'railroad') {
+        tileHTML = `
+            <div class="space railroad">
+                <div class="container">
+                    <div class="name">${tileData.name}</div>
+                    <i class="drawing fa fa-subway"></i>
+                    <div class="price">Price $${tileData.price}</div>
+                </div>
+            </div>
+        `;
+    } else if (tileData.type === 'utility') {
+        tileHTML = `
+            <div class="space utility">
+                <div class="container">
+                    <div class="name">${tileData.name}</div>
+                    <i class="drawing fa fa-lightbulb-o"></i>
+                    <div class="price">Price $${tileData.price}</div>
+                </div>
+            </div>
+        `;
+    } else if (tileData.type === 'community-chest') {
+        tileHTML = `
+            <div class="space community-chest">
+                <div class="container">
+                    <div class="name">Community Chest</div>
+                    <i class="drawing fa fa-cube"></i>
+                    <div class="instructions">Follow instructions on top card</div>
+                </div>
+            </div>
+        `;
+    } else if (tileData.type === 'chance') {
+        tileHTML = `
+            <div class="space chance">
+                <div class="container">
+                    <div class="name">Chance</div>
+                    <i class="drawing fa fa-question"></i>
+                </div>
+            </div>
+        `;
+    } else if (tileData.type === 'tax') {
+        tileHTML = `
+            <div class="space fee income-tax">
+                <div class="container">
+                    <div class="name">${tileData.name}</div>
+                    <div class="diamond"></div>
+                    <div class="instructions">Pay 10%<br>or<br>$200</div>
+                </div>
+            </div>
+        `;
+    } else {
+        // For corners and other types
+        tileHTML = `
+            <div class="space">
+                <div class="container">
+                    <div class="name">${tileData.name}</div>
+                </div>
+            </div>
+        `;
+    }
+    return tileHTML;
+}
+
 function renderBoard() {
-    monopolyBoard.innerHTML = '';
-    const playerIds = Object.keys(gameState.players);
+    const bottomRow = document.querySelector('.bottom-row');
+    const leftRow = document.querySelector('.left-row');
+    const topRow = document.querySelector('.top-row');
+    const rightRow = document.querySelector('.right-row');
+
+    bottomRow.innerHTML = '';
+    leftRow.innerHTML = '';
+    topRow.innerHTML = '';
+    rightRow.innerHTML = '';
 
     boardLayout.forEach((tileData, i) => {
-        const tile = document.createElement('div');
-        tile.classList.add('tile');
-
-        let row, col;
-        if (i < 10) {
-            row = 11; col = 11 - i;
-            tile.classList.add('bottom-row');
-        } else if (i < 20) {
-            row = 11 - (i - 10); col = 1;
-            tile.classList.add('left-row');
-        } else if (i < 30) {
-            row = 1; col = 1 + (i - 20);
-            tile.classList.add('top-row');
-        } else {
-            row = 1 + (i - 30); col = 11;
-            tile.classList.add('right-row');
+        const tileHTML = createTileHTML(tileData);
+        if (i > 0 && i < 10) {
+            bottomRow.innerHTML += tileHTML;
+        } else if (i > 10 && i < 20) {
+            leftRow.innerHTML += tileHTML;
+        } else if (i > 20 && i < 30) {
+            topRow.innerHTML += tileHTML;
+        } else if (i > 30 && i < 40) {
+            rightRow.innerHTML += tileHTML;
         }
+    });
 
-        tile.style.gridRow = row;
-        tile.style.gridColumn = col;
-
-        if (tileData.type === 'property') {
-            tile.innerHTML = `
-                <div class="color-bar" style="background-color: ${tileData.color};"></div>
-                <div class="name">${tileData.name}</div>
-                <div class="price">$${tileData.price}</div>
-            `;
-        } else {
-            tile.innerHTML = `<div class="name">${tileData.name}</div>`;
-        }
-
-        if (tileData.type === 'corner') {
-            tile.classList.add('corner');
-        }
-
+    // Update tile ownership and mortgage status
+    for (let i = 0; i < gameState.boardState.length; i++) {
         const tileState = gameState.boardState[i];
         if (tileState.owner) {
-            const ownerIndex = playerIds.indexOf(tileState.owner);
-            tile.style.borderColor = playerColors[ownerIndex];
-            tile.style.borderWidth = '3px';
+            const tileElement = document.querySelector(`.space:nth-child(${i + 1})`);
+            if (tileElement) {
+                tileElement.style.borderColor = playerColors[Object.keys(gameState.players).indexOf(tileState.owner)];
+                if (tileState.mortgaged) {
+                    tileElement.classList.add('mortgaged');
+                }
+            }
         }
+    }
 
-        monopolyBoard.appendChild(tile);
+    // Add player pawns
+    const playerIds = Object.keys(gameState.players);
+    playerIds.forEach((playerId, index) => {
+        const player = gameState.players[playerId];
+        const pawn = document.createElement('div');
+        pawn.classList.add('player-pawn');
+        pawn.style.backgroundColor = playerColors[index];
+
+        const tileElement = document.querySelector(`.space:nth-child(${player.position + 1})`);
+        if (tileElement) {
+            tileElement.appendChild(pawn);
+        }
     });
 }
