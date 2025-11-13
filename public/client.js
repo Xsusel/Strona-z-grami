@@ -176,6 +176,7 @@ socket.on('offer-purchase', (data) => {
 });
 
 socket.on('card-drawn', (data) => {
+    playSound(sounds.cardDraw);
     showModal('Wylosowano kartę', data.cardText, [{ text: 'OK', callback: () => {} }]);
 });
 

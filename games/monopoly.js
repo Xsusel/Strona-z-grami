@@ -44,15 +44,28 @@ const boardLayout = [
 
 const chanceCards = [
     { text: "Idź na Start (Pobierz $200)", action: "move", position: 0 },
-    { text: "Idź do Więzienia", action: "move", position: 10, jail: true },
-    { text: "Bank płaci Ci dywidendę w wysokości $50", action: "money", amount: 50 },
-    { text: "Wychodzisz z więzienia za darmo", action: "get-out-of-jail" }
+    { text: "Idź do Więzienia. Nie przechodź przez Start, nie pobieraj $200.", action: "move", position: 10, jail: true },
+    { text: "Idź na Pola Elizejskie.", action: "move", position: 39 },
+    { text: "Idź do Kolei Zachodnich. Jeśli przejdziesz przez Start, pobierz $200.", action: "move", position: 15 },
+    { text: "Bank płaci Ci dywidendę w wysokości $50.", action: "money", amount: 50 },
+    { text: "Wychodzisz z więzienia za darmo. Tę kartę można zachować do późniejszego użycia lub sprzedać.", action: "get-out-of-jail" },
+    { text: "Cofnij się o 3 pola.", action: "move_relative", amount: -3 },
+    { text: "Zapłać grzywnę za przekroczenie prędkości w wysokości $15.", action: "money", amount: -15 },
+    { text: "Twoja pożyczka budowlana dojrzewa. Pobierz $150.", action: "money", amount: 150 },
+    { text: "Zostałeś wybrany na przewodniczącego zarządu. Zapłać każdemu graczowi $50.", action: "pay_players", amount: 50 }
 ];
 
 const communityChestCards = [
-    { text: "Błąd banku na Twoją korzyść. Pobierz $200", action: "money", amount: 200 },
-    { text: "Płacisz opłatę za szkołę $50", action: "money", amount: -50 },
-    { text: "Idź do Więzienia", action: "move", position: 10, jail: true }
+    { text: "Idź na Start (Pobierz $200)", action: "move", position: 0 },
+    { text: "Błąd banku na Twoją korzyść. Pobierz $200.", action: "money", amount: 200 },
+    { text: "Opłata lekarska. Zapłać $50.", action: "money", amount: -50 },
+    { text: "Ze sprzedaży akcji otrzymujesz $50.", action: "money", amount: 50 },
+    { text: "Wychodzisz z więzienia za darmo. Tę kartę można zachować do późniejszego użycia lub sprzedać.", action: "get-out-of-jail" },
+    { text: "Idź do Więzienia. Nie przechodź przez Start, nie pobieraj $200.", action: "move", position: 10, jail: true },
+    { text: "Zwrot podatku dochodowego. Pobierz $20.", action: "money", amount: 20 },
+    { text: "Masz urodziny. Pobierz $10 od każdego gracza.", action: "collect_from_players", amount: 10 },
+    { text: "Zajmujesz drugie miejsce w konkursie piękności. Pobierz $10.", action: "money", amount: 10 },
+    { text: "Otrzymujesz spadek w wysokości $100.", action: "money", amount: 100 }
 ];
 
 function createGameState(playerIds, nicknames) {
@@ -327,6 +340,25 @@ function drawCard(deck, player, io, room, roomName) {
             break;
         case 'get-out-of-jail':
             player.getOutOfJailFreeCards++;
+            break;
+        case 'move_relative':
+            player.position = (player.position + card.amount + 40) % 40;
+            break;
+        case 'pay_players':
+            for (const otherPlayerId in room.gameState.players) {
+                if (otherPlayerId !== player.id) {
+                    player.money -= card.amount;
+                    room.gameState.players[otherPlayerId].money += card.amount;
+                }
+            }
+            break;
+        case 'collect_from_players':
+            for (const otherPlayerId in room.gameState.players) {
+                if (otherPlayerId !== player.id) {
+                    player.money += card.amount;
+                    room.gameState.players[otherPlayerId].money -= card.amount;
+                }
+            }
             break;
     }
 }
