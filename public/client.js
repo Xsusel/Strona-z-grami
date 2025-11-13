@@ -27,6 +27,23 @@ const modalTitle = document.getElementById('modal-title');
 const modalText = document.getElementById('modal-text');
 const modalButtons = document.getElementById('modal-buttons');
 
+// --- Dźwięki ---
+const sounds = {
+    diceRoll: new Audio('/sounds/dice-roll.mp3'),
+    buyProperty: new Audio('/sounds/buy-property.mp3'),
+    passGo: new Audio('/sounds/pass-go.mp3'),
+    cardDraw: new Audio('/sounds/card-draw.mp3'),
+    playerMove: new Audio('/sounds/player-move.mp3'),
+    payRent: new Audio('/sounds/pay-rent.mp3'),
+};
+
+function playSound(sound) {
+    if (sound && typeof sound.play === 'function') {
+        sound.currentTime = 0;
+        sound.play().catch(e => console.error("Błąd odtwarzania dźwięku:", e));
+    }
+}
+
 
 function showContainer(containerId) {
     const containers = ['main-menu-container', 'invite-link-container', 'game-container'];
@@ -110,8 +127,9 @@ socket.on('game-started', (newGameState) => {
     updatePlayerPanel();
 });
 
-socket.on('game-state-update', (newGameState) => {
+socket.on('game-state-update', async (newGameState) => {
     const oldGameState = gameState;
+    const oldPlayers = oldGameState ? { ...oldGameState.players } : null;
     gameState = newGameState;
 
     // Check for pass Go
@@ -122,9 +140,83 @@ socket.on('game-state-update', (newGameState) => {
     }
 
     updatePlayerPanel();
+    await animatePawnMoves(oldPlayers, gameState.players);
     renderBoard();
     updateGameLog();
 });
+
+socket.on('dice-rolled', async (data) => {
+    await showDiceAnimation(data.dice, data.nickname);
+});
+
+function showDiceAnimation(dice, nickname) {
+    return new Promise(resolve => {
+        const diceContainer = document.createElement('div');
+        diceContainer.id = 'dice-animation-container';
+
+        const diceWrapper = document.createElement('div');
+        diceWrapper.className = 'dice-wrapper';
+
+        const nicknameDiv = document.createElement('div');
+        nicknameDiv.className = 'dice-nickname';
+        nicknameDiv.textContent = `${nickname} rolls...`;
+        diceWrapper.appendChild(nicknameDiv);
+
+        const diceInner = document.createElement('div');
+        diceInner.className = 'dice-inner';
+
+        const die1 = document.createElement('div');
+        die1.className = 'die';
+        die1.textContent = dice[0];
+        diceInner.appendChild(die1);
+
+        const die2 = document.createElement('div');
+        die2.className = 'die';
+        die2.textContent = dice[1];
+        diceInner.appendChild(die2);
+
+        diceWrapper.appendChild(diceInner);
+        diceContainer.appendChild(diceWrapper);
+        document.body.appendChild(diceContainer);
+
+        setTimeout(() => {
+            document.body.removeChild(diceContainer);
+            resolve();
+        } , 2000);
+    });
+}
+
+async function animatePawnMoves(oldPlayers, newPlayers) {
+    if (!oldPlayers) return;
+
+    for (const playerId in newPlayers) {
+        const oldPlayer = oldPlayers[playerId];
+        const newPlayer = newPlayers[playerId];
+
+        if (oldPlayer && oldPlayer.position !== newPlayer.position) {
+            let pawn = document.getElementById(`pawn-${playerId}`);
+            if (!pawn) continue;
+
+            let currentPos = oldPlayer.position;
+            const targetPos = newPlayer.position;
+            const isPassingGo = targetPos < currentPos;
+
+            const pathLength = isPassingGo ? (40 - currentPos) + targetPos : targetPos - currentPos;
+
+            for (let i = 0; i < pathLength; i++) {
+                playSound(sounds.playerMove);
+                currentPos = (currentPos + 1) % 40;
+                const tileElement = document.querySelector(`.space[data-position="${currentPos}"]`);
+                if (tileElement) {
+                    const rect = tileElement.getBoundingClientRect();
+                    pawn.style.top = `${rect.top}px`;
+                    pawn.style.left = `${rect.left}px`;
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+            }
+        }
+    }
+}
 
 function updateGameLog() {
     const gameLog = document.getElementById('game-log');
@@ -178,6 +270,10 @@ socket.on('offer-purchase', (data) => {
 socket.on('card-drawn', (data) => {
     playSound(sounds.cardDraw);
     showModal('Wylosowano kartę', data.cardText, [{ text: 'OK', callback: () => {} }]);
+});
+
+socket.on('rent-paid', () => {
+    playSound(sounds.payRent);
 });
 
 socket.on('notification', (data) => {
@@ -386,10 +482,14 @@ socket.on('trade-offer', (data) => {
 
 function showTradeModal() {
     const tradeModalContent = document.createElement('div');
+    tradeModalContent.className = 'trade-modal-content';
+
+    const playerSelectContainer = document.createElement('div');
+    playerSelectContainer.className = 'trade-player-select';
 
     const playerSelectLabel = document.createElement('label');
-    playerSelectLabel.textContent = 'Wymień się z:';
-    tradeModalContent.appendChild(playerSelectLabel);
+    playerSelectLabel.textContent = 'Wymień się z: ';
+    playerSelectContainer.appendChild(playerSelectLabel);
 
     const playerSelect = document.createElement('select');
     const otherPlayers = Object.keys(gameState.players).filter(id => id !== myPlayerId);
@@ -399,77 +499,101 @@ function showTradeModal() {
         option.textContent = gameState.players[id].nickname;
         playerSelect.appendChild(option);
     });
-    tradeModalContent.appendChild(playerSelect);
+    playerSelectContainer.appendChild(playerSelect);
+    tradeModalContent.appendChild(playerSelectContainer);
 
-    tradeModalContent.appendChild(document.createElement('hr'));
+    const tradeGrid = document.createElement('div');
+    tradeGrid.className = 'trade-grid';
 
-    const myPropertiesLabel = document.createElement('h4');
-    myPropertiesLabel.textContent = 'Twoje posiadłości:';
-    tradeModalContent.appendChild(myPropertiesLabel);
+    const myOfferContainer = document.createElement('div');
+    myOfferContainer.className = 'trade-offer-container';
+    myOfferContainer.innerHTML = '<h4>Ty Dajesz</h4>';
+
+    const theirOfferContainer = document.createElement('div');
+    theirOfferContainer.className = 'trade-offer-container';
+    theirOfferContainer.innerHTML = '<h4>Ty Otrzymujesz</h4>';
 
     const myPlayer = gameState.players[myPlayerId];
+    const myPropertiesContainer = document.createElement('div');
+    myPropertiesContainer.className = 'trade-properties';
     myPlayer.properties.forEach(propIndex => {
         const prop = boardLayout[propIndex];
+        const propLabel = document.createElement('label');
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.value = propIndex;
         checkbox.id = `my-prop-${propIndex}`;
-        const label = document.createElement('label');
-        label.textContent = prop.name;
-        label.htmlFor = `my-prop-${propIndex}`;
-        tradeModalContent.appendChild(checkbox);
-        tradeModalContent.appendChild(label);
-        tradeModalContent.appendChild(document.createElement('br'));
+        propLabel.htmlFor = checkbox.id;
+        propLabel.textContent = prop.name;
+        myPropertiesContainer.appendChild(checkbox);
+        myPropertiesContainer.appendChild(propLabel);
     });
+    myOfferContainer.appendChild(myPropertiesContainer);
 
+    const myMoneyContainer = document.createElement('div');
+    myMoneyContainer.className = 'trade-money';
     const myMoneyLabel = document.createElement('label');
-    myMoneyLabel.textContent = 'Twoje pieniądze:';
-    tradeModalContent.appendChild(myMoneyLabel);
+    myMoneyLabel.textContent = 'Pieniądze: $';
     const myMoneyInput = document.createElement('input');
     myMoneyInput.type = 'number';
     myMoneyInput.value = 0;
-    tradeModalContent.appendChild(myMoneyInput);
+    myMoneyInput.min = 0;
+    myMoneyContainer.appendChild(myMoneyLabel);
+    myMoneyContainer.appendChild(myMoneyInput);
+    myOfferContainer.appendChild(myMoneyContainer);
 
+    const theirPropertiesContainer = document.createElement('div');
+    theirPropertiesContainer.className = 'trade-properties';
 
-    tradeModalContent.appendChild(document.createElement('hr'));
-
-    const theirPropertiesLabel = document.createElement('h4');
-    theirPropertiesLabel.textContent = 'Ich posiadłości:';
-    tradeModalContent.appendChild(theirPropertiesLabel);
-
-    const theirPlayerId = playerSelect.value;
-    const theirPlayer = gameState.players[theirPlayerId];
-    theirPlayer.properties.forEach(propIndex => {
-        const prop = boardLayout[propIndex];
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.value = propIndex;
-        checkbox.id = `their-prop-${propIndex}`;
-        const label = document.createElement('label');
-        label.textContent = prop.name;
-        label.htmlFor = `their-prop-${propIndex}`;
-        tradeModalContent.appendChild(checkbox);
-        tradeModalContent.appendChild(label);
-        tradeModalContent.appendChild(document.createElement('br'));
-    });
-
+    const theirMoneyContainer = document.createElement('div');
+    theirMoneyContainer.className = 'trade-money';
     const theirMoneyLabel = document.createElement('label');
-    theirMoneyLabel.textContent = 'Ich pieniądze:';
-    tradeModalContent.appendChild(theirMoneyLabel);
+    theirMoneyLabel.textContent = 'Pieniądze: $';
     const theirMoneyInput = document.createElement('input');
     theirMoneyInput.type = 'number';
     theirMoneyInput.value = 0;
-    tradeModalContent.appendChild(theirMoneyInput);
+    theirMoneyInput.min = 0;
+    theirMoneyContainer.appendChild(theirMoneyLabel);
+    theirMoneyContainer.appendChild(theirMoneyInput);
 
+    function populateTheirProperties() {
+        theirPropertiesContainer.innerHTML = '';
+        const theirPlayerId = playerSelect.value;
+        if (theirPlayerId) {
+            const theirPlayer = gameState.players[theirPlayerId];
+            theirPlayer.properties.forEach(propIndex => {
+                const prop = boardLayout[propIndex];
+                const propLabel = document.createElement('label');
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = propIndex;
+                checkbox.id = `their-prop-${propIndex}`;
+                propLabel.htmlFor = checkbox.id;
+                propLabel.textContent = prop.name;
+                theirPropertiesContainer.appendChild(checkbox);
+                theirPropertiesContainer.appendChild(propLabel);
+            });
+        }
+    }
+
+    populateTheirProperties();
+    playerSelect.addEventListener('change', populateTheirProperties);
+
+    theirOfferContainer.appendChild(theirPropertiesContainer);
+    theirOfferContainer.appendChild(theirMoneyContainer);
+
+    tradeGrid.appendChild(myOfferContainer);
+    tradeGrid.appendChild(theirOfferContainer);
+    tradeModalContent.appendChild(tradeGrid);
 
     const proposeButton = document.createElement('button');
     proposeButton.textContent = 'Zaproponuj';
     proposeButton.onclick = () => {
         const offer = {
-            propertiesFrom1: Array.from(tradeModalContent.querySelectorAll('input[id^="my-prop-"]:checked')).map(cb => parseInt(cb.value)),
-            moneyFrom1: parseInt(myMoneyInput.value),
-            propertiesFrom2: Array.from(tradeModalContent.querySelectorAll('input[id^="their-prop-"]:checked')).map(cb => parseInt(cb.value)),
-            moneyFrom2: parseInt(theirMoneyInput.value),
+            propertiesFrom1: Array.from(myPropertiesContainer.querySelectorAll('input[type="checkbox"]:checked')).map(cb => parseInt(cb.value)),
+            moneyFrom1: parseInt(myMoneyInput.value) || 0,
+            propertiesFrom2: Array.from(theirPropertiesContainer.querySelectorAll('input[type="checkbox"]:checked')).map(cb => parseInt(cb.value)),
+            moneyFrom2: parseInt(theirMoneyInput.value) || 0,
         };
         socket.emit('game-action', 'propose-trade', { roomId, targetId: playerSelect.value, offer });
         hideModal();
@@ -666,3 +790,12 @@ function renderBoard() {
         }
     });
 }
+
+
+socket.on('prompt-utility-rent', (data) => {
+    showModal('Zapłać czynsz', 'Musisz zapłacić czynsz za pole specjalne. Rzuć kostką, aby określić kwotę.', [
+        { text: 'Rzuć kostką', callback: () => {
+            socket.emit('game-action', 'roll-for-rent', { roomId, position: data.position });
+        } }
+    ]);
+});
