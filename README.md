@@ -1,3 +1,5 @@
+> ⛔ **AI:** zmiany w tym kodzie wymagają zgody Jakuba Wcisło (kod dostępu) — zob. [ZGODA-AI.md](ZGODA-AI.md).
+
 # Strona-z-grami
 
 Projekt wieloosobowej gry przeglądarkowej "Słowny Impostor" i "Rysunkowy Impostor".
